@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  ros2_jazzy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ros2_jazzy_workspace
+    container_name: ros2_jazzy_container
+    network_mode: host
+    volumes:
+      - .:/workspace
+    tty: true
+    stdin_open: true
