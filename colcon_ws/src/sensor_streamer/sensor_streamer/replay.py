@@ -5,19 +5,17 @@ from std_msgs.msg import Int32, Float32
 import csv
 import os
 import time
-import random
 import argparse
 
 class CSVReplayNode(Node):
-    def __init__(self, csv_path, jitter=False, drop_rate=0.0):
+    def __init__(self, csv_path):
         super().__init__('csv_replay_node')
         self.csv_path = csv_path
-        self.jitter = jitter
-        self.drop_rate = drop_rate
 
         # Publishers
         self.encoder_pub = self.create_publisher(Int32, '/encoder_count', 10)
         self.accel_pub = self.create_publisher(Float32, '/accel_x_mss', 10)
+        self.timestamp_pub = self.create_publisher(Float32, '/timestamp', 10)
 
         # Load CSV data
         self.data = self.load_csv()
@@ -47,27 +45,21 @@ class CSVReplayNode(Node):
             self.start_time = time.time()
 
         current_time = time.time() - self.start_time
+        tolerance = 0.001 
+
         for row in self.data:
-            # Calculate sleep time to match original timestamp
             target_time = row['timestamp_s']
             sleep_time = target_time - current_time
 
-            # Apply jitter if enabled
-            if self.jitter and sleep_time > 0:
-                sleep_time *= random.uniform(0.8, 1.2)  # ±20% jitter
-
-            # Apply drop rate
-            if random.random() < self.drop_rate:
-                continue
-
-            # Sleep until target time
             if sleep_time > 0:
+                sleep_time = max(sleep_time - tolerance, 0.0)  # Ensure non-negative
                 time.sleep(sleep_time)
                 current_time = time.time() - self.start_time
 
             # Publish data
             self.encoder_pub.publish(Int32(data=row['encoder_count']))
             self.accel_pub.publish(Float32(data=row['accel_x_mss']))
+            self.timestamp_pub.publish(Float32(data=row['timestamp_s']))
 
         # Stop after replaying once
         self.timer.cancel()
@@ -77,8 +69,6 @@ def main(args=None):
     rclpy.init(args=args)
     parser = argparse.ArgumentParser()
     parser.add_argument('--replay', action='store_true', help='Enable replay mode')
-    parser.add_argument('--jitter', action='store_true', help='Enable timing jitter')
-    parser.add_argument('--drop-rate', type=float, default=0.0, help='Drop rate (0.0 to 1.0)')
     args, unknown = parser.parse_known_args()
 
     if not args.replay:
@@ -88,7 +78,7 @@ def main(args=None):
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"CSV file not found at {csv_path}")
 
-    node = CSVReplayNode(csv_path, args.jitter, args.drop_rate)
+    node = CSVReplayNode(csv_path)
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
