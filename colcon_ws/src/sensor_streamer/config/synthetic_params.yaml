@@ -1,0 +1,21 @@
+synthetic_sensor:
+  ros__parameters:
+    # Shared motion parameters
+    amplitudes: [1.0, 0.3, 0.1]
+    frequencies: [0.5, 1.5, 3.0]
+    phases: [0.0, 0.0, 0.0]
+    wheel_circumference: 0.203
+    counts_per_revolution: 4096
+
+    # IMU settings (high rate)
+    imu:
+      rate: 200.0
+      noise_std: 0.05
+      drop_rate: 0.005
+      jitter_range: 0.1
+
+    # Encoder settings (lower rate)
+    encoder:
+      rate: 50.0
+      drop_rate: 0.01
+      jitter_range: 0.15
