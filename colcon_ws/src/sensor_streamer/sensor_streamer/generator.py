@@ -9,23 +9,23 @@ import time
 
 class SyntheticDataNode(Node):
     def __init__(self):
-        super().__init__('synthetic_data_node')
+        super().__init__('synthetic_sensor')
 
-        # === Parameter declarations (unchanged) ===
+        # Declare parameters (values will be loaded from YAML)
         self.declare_parameter('amplitudes', [1.0, 0.5])
         self.declare_parameter('frequencies', [1.0, 2.0])
         self.declare_parameter('phases', [0.0, math.pi/2])
         self.declare_parameter('wheel_circumference', 0.203)
         self.declare_parameter('counts_per_revolution', 4096)
-        self.declare_parameter('imu/rate', 200.0)
-        self.declare_parameter('imu/noise_std', 0.05)
-        self.declare_parameter('imu/drop_rate', 0.005)
-        self.declare_parameter('imu/jitter_range', 0.1)
-        self.declare_parameter('encoder/rate', 50.0)
-        self.declare_parameter('encoder/drop_rate', 0.01)
-        self.declare_parameter('encoder/jitter_range', 0.15)
+        self.declare_parameter('imu.rate', 200.0)
+        self.declare_parameter('imu.noise_std', 0.05)
+        self.declare_parameter('imu.drop_rate', 0.005)
+        self.declare_parameter('imu.jitter_range', 0.1)
+        self.declare_parameter('encoder.rate', 50.0)
+        self.declare_parameter('encoder.drop_rate', 0.01)
+        self.declare_parameter('encoder.jitter_range', 0.15)
 
-        # Load parameters (unchanged)
+        # Load parameters from YAML (no hardcoded values)
         self.amplitudes = self.get_parameter('amplitudes').get_parameter_value().double_array_value
         self.frequencies = self.get_parameter('frequencies').get_parameter_value().double_array_value
         self.phases = self.get_parameter('phases').get_parameter_value().double_array_value
@@ -37,24 +37,19 @@ class SyntheticDataNode(Node):
         self.imu_jitter_range = self.get_parameter('imu.jitter_range').get_parameter_value().double_value
         self.encoder_rate = self.get_parameter('encoder.rate').get_parameter_value().double_value
         self.encoder_drop_rate = self.get_parameter('encoder.drop_rate').get_parameter_value().double_value
-        self.encoder_jitter_range = self.get_parameter('encoder.jitter_range').get_parameter_value().double_value
+        self.encoder_jitter_range = self.get_parameter('encoder.drop_rate').get_parameter_value().double_value
 
-        # === START TIME (read-only after init) ===
+        # State
         self.t0 = time.time()
-
-        # === PER-SENSOR STATE (no shared mutable state) ===
-        # IMU state
         self.imu_prev_time = self.t0
         self.imu_prev_velocity = 0.0
-
-        # Encoder state
         self.encoder_prev_time = self.t0
         self.encoder_position = 0.0
-
+        
         # Publishers
         self.encoder_pub = self.create_publisher(Int32, 'encoder_count', 10)
         self.imu_pub = self.create_publisher(Float32, 'accel_x_mss', 10)
-
+        
         # Timers
         self.imu_timer = self.create_timer(1.0 / self.imu_rate, self.publish_imu)
         self.encoder_timer = self.create_timer(1.0 / self.encoder_rate, self.publish_encoder)
@@ -89,7 +84,7 @@ class SyntheticDataNode(Node):
         if self.imu_jitter_range > 0:
             time.sleep(random.uniform(0, self.imu_jitter_range / self.imu_rate))
 
-        # Update IMU state (thread-local)
+        # Update IMU state
         self.imu_prev_velocity = current_vel
         self.imu_prev_time = current_time
 
@@ -118,11 +113,39 @@ class SyntheticDataNode(Node):
         if self.encoder_jitter_range > 0:
             time.sleep(random.uniform(0, self.encoder_jitter_range / self.encoder_rate))
 
-        # Update encoder state (thread-local)
+        # Update encoder state
         self.encoder_prev_time = current_time
 
 
 def main(args=None):
+    
+    import sys
+    from ament_index_python.packages import get_package_share_directory
+    import os
+    
+    # Check for --config flag before ROS2 initialization
+    if '--config' in sys.argv:
+        idx = sys.argv.index('--config')
+        if idx + 1 >= len(sys.argv):
+            print("Warning: No file path provided after --config flag. Falling back to default values.")
+            # Remove --config flag
+            del sys.argv[idx]
+        else:
+            config_file = sys.argv[idx + 1]
+            # Replace --config with --ros-args --params-file for ROS2 parameter loading
+            sys.argv[idx] = '--ros-args'
+            sys.argv[idx + 1] = '--params-file'
+            sys.argv.insert(idx + 2, config_file)
+    else:
+        # No --config specified, use default config from package
+        pkg_share_dir = get_package_share_directory('sensor_streamer')
+        default_config = os.path.join(pkg_share_dir, 'config', 'synthetic_params.yaml')
+        if os.path.exists(default_config):
+            # Insert default config as params-file
+            sys.argv.append('--ros-args')
+            sys.argv.append('--params-file')
+            sys.argv.append(default_config)
+    
     rclpy.init(args=args)
     node = SyntheticDataNode()
 
