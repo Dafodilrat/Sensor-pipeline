@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     filtered_data=cleaned_data.copy()
 
-    filtered_data["accel_x_mss"] = low_pass_filter(cleaned_data["accel_x_mss"], cleaned_data["timestamp_s"], cutoff_freq=20.0, order=4)
+    filtered_data["accel_x_mss"] = low_pass_filter(cleaned_data["accel_x_mss"], cleaned_data["timestamp_s"], cutoff_freq=50.0, order=4)
 
     plot_cleaned_vs_original(cleaned_data, filtered_data, output_path="imu_analysis/pics/"+"clean_vs_filtered.png")
     
