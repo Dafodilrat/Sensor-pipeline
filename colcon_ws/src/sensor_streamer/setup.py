@@ -1,4 +1,6 @@
 from setuptools import find_packages, setup
+import os
+from glob import glob
 
 package_name = 'sensor_streamer'
 
@@ -10,20 +12,20 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name + '/config', ['config/synthetic_params.yaml']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='root',
-    maintainer_email='root@todo.todo',
-    description='TODO: Package description',
-    license='TODO: License declaration',
-    extras_require={
-        'test': [
-            'pytest',
-        ],
-    },
+    maintainer='dafodilrat',
+    maintainer_email='your@email.com',
+    description='Package for generating and processing synthetic sensor data',
+    license='Apache-2.0',
+    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'synthetic_sensor = sensor_streamer.generator:main',
+            'replay = sensor_streamer.replay:main',
+            'sensor_play = sensor_streamer.sensor_play:main',
         ],
     },
 )
