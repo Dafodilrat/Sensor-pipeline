@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     filtered_data=cleaned_data.copy()
 
-    filtered_data["accel_x_mss"] = low_pass_filter(cleaned_data["accel_x_mss"], cleaned_data["timestamp_s"], cutoff_freq=50.0, order=4)
+    filtered_data["accel_x_mss"] = low_pass_filter(cleaned_data["accel_x_mss"], cleaned_data["timestamp_s"], cutoff_freq=4.5, order=5)
 
     plot_cleaned_vs_original(cleaned_data, filtered_data, output_path="imu_analysis/pics/"+"clean_vs_filtered.png")
     
@@ -67,17 +67,17 @@ if __name__ == "__main__":
         save_path="imu_analysis/pics/"+"fft_spectrum_2.png",  # Save as PNG
     )
     
-    # # Fit sine waves to cleaned IMU data
-    # fitted_signal, params, mse, rmse, r_squared = fit_sine_waves(
-    #     cleaned_data["timestamp_s"].values,
-    #     cleaned_data["accel_x_mss"].values,
-    #     num_sine_waves=3
-    # )
+    # Fit sine waves to cleaned IMU data
+    fitted_signal, params, mse, rmse, r_squared = fit_sine_waves(
+        filtered_data["timestamp_s"].values,
+        filtered_data["accel_x_mss"].values,
+        num_sine_waves=5
+    )
 
-    # # Plot sine wave fit
-    # plot_sine_wave_fit(
-    #     cleaned_data["timestamp_s"].values,
-    #     cleaned_data["accel_x_mss"].values,
-    #     fitted_signal,
-    #     output_path="imu_analysis/pics/"+"sine_wave_fit.png"
-    # )
+    # Plot sine wave fit
+    plot_sine_wave_fit(
+        filtered_data["timestamp_s"].values,
+        filtered_data["accel_x_mss"].values,
+        fitted_signal,
+        output_path="imu_analysis/pics/"+"sine_wave_fit.png"
+    )
