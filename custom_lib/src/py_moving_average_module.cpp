@@ -38,9 +38,9 @@ PYBIND11_MODULE(py_moving_average, m) {
     py::module_ timeDurationAvgModule = py::module_::create_submodule(
         m, "TimeDurationMovingAverage", "Time-based moving average with type-specific implementations");
     
-    bind_TimeDurationMovingAverage<int, MEDIUM_BUFFER>(timeDurationAvgModule, "Integer");
-    bind_TimeDurationMovingAverage<double, MEDIUM_BUFFER>(timeDurationAvgModule, "Double");
-    bind_TimeDurationMovingAverage<float, MEDIUM_BUFFER>(timeDurationAvgModule, "Float");
+    bind_TimeDurationMovingAverage<int, MEDIUM_BUFFER>(timeDurationAvgModule, "IntegerMovingAvg");
+    bind_TimeDurationMovingAverage<double, MEDIUM_BUFFER>(timeDurationAvgModule, "DoubleMovingAvg");
+    bind_TimeDurationMovingAverage<float, MEDIUM_BUFFER>(timeDurationAvgModule, "FloatMovingAvg");
 
     // =========================================================================
     // Also expose the types directly in the main module for convenience
@@ -49,11 +49,11 @@ PYBIND11_MODULE(py_moving_average, m) {
     // =========================================================================
     
     // Direct type bindings in main module
-    bind_FixedMovingAverage<int, MEDIUM_BUFFER>(m, "IntegerAverage");
-    bind_FixedMovingAverage<double, MEDIUM_BUFFER>(m, "FixedMovingAverage");
-    bind_FixedMovingAverage<float, MEDIUM_BUFFER>(m, "FixedMovingAverageFloat");
+    // bind_FixedMovingAverage<int, MEDIUM_BUFFER>(m, "IntegerAverage");
+    // bind_FixedMovingAverage<double, MEDIUM_BUFFER>(m, "FixedMovingAverage");
+    // bind_FixedMovingAverage<float, MEDIUM_BUFFER>(m, "FixedMovingAverageFloat");
     
-    bind_TimeDurationMovingAverage<int, MEDIUM_BUFFER>(m, "TimeDurationMovingAverageInt");
-    bind_TimeDurationMovingAverage<double, MEDIUM_BUFFER>(m, "TimeDurationMovingAverage");
-    bind_TimeDurationMovingAverage<float, MEDIUM_BUFFER>(m, "TimeDurationMovingAverageFloat");
+    // bind_TimeDurationMovingAverage<int, MEDIUM_BUFFER>(m, "TimeDurationMovingAverageInt");
+    // bind_TimeDurationMovingAverage<double, MEDIUM_BUFFER>(m, "TimeDurationMovingAverage");
+    // bind_TimeDurationMovingAverage<float, MEDIUM_BUFFER>(m, "TimeDurationMovingAverageFloat");
 }

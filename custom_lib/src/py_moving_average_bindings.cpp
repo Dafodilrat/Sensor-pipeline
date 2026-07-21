@@ -3,8 +3,9 @@
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
 
-// Include our wrapper headers
-#include "../lib/py_moving_average_wrappers.hpp"
+// Include the actual template headers
+#include "../lib/fixed_moving_average.hpp"
+#include "../lib/time_duration_moving_average.hpp"
 
 namespace py = pybind11;
 
