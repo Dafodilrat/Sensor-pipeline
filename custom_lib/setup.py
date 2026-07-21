@@ -26,6 +26,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 # Include directories
 include_dirs = [
     here,  # Current directory for our headers
+    os.path.join(here, 'lib'),  # Include lib directory for template headers
     pybind11.get_include(),  # pybind11 include directory
 ]
 
@@ -33,8 +34,7 @@ include_dirs = [
 moving_average_ext = Extension(
     'py_moving_average',
     sources=[
-        'python_bindings.cpp',
-        'mavg.cpp',  # Include our implementation
+        'src/py_moving_average_module.cpp',
     ],
     include_dirs=include_dirs,
     language='c++',
