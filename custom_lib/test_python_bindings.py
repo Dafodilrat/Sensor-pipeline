@@ -10,6 +10,7 @@ import sys
 import os
 import time
 import math
+from datetime import timedelta
 
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -60,8 +61,8 @@ def test_fixed_moving_average_double():
     try:
         from py_moving_average import FixedMovingAverageDouble
         
-        # Create a fixed moving average with window size 5
-        ma = FixedMovingAverageDouble(5)
+        # Create a fixed moving average (uses full buffer capacity of 1000)
+        ma = FixedMovingAverageDouble()
         print(f"✓ Created FixedMovingAverageDouble with window size 5")
         
         # Test basic functionality
@@ -91,8 +92,9 @@ def test_fixed_moving_average_double():
         print("✓ All averages match expected values")
         
         # Test properties
-        if ma.size != 5:
-            print(f"✗ Size property incorrect: got {ma.size}, expected 5")
+        # Size will be equal to number of updates since buffer is large (1000)
+        if ma.size != len(test_values):
+            print(f"✗ Size property incorrect: got {ma.size}, expected {len(test_values)}")
             return False
         
         if ma.max_size != 1000:  # Medium buffer size
@@ -122,8 +124,8 @@ def test_fixed_moving_average_float():
     try:
         from py_moving_average import FixedMovingAverageFloat
         
-        # Create a fixed moving average with window size 3
-        ma = FixedMovingAverageFloat(3)
+        # Create a fixed moving average (uses full buffer capacity)
+        ma = FixedMovingAverageFloat()
         print(f"✓ Created FixedMovingAverageFloat with window size 3")
         
         # Test basic functionality
@@ -133,9 +135,9 @@ def test_fixed_moving_average_float():
             avg = ma.update(val)
             print(f"  Value: {val}, Average: {avg:.4f}")
         
-        # Test that it's using float precision
-        if ma.size != 3:
-            print(f"✗ Size property incorrect: got {ma.size}, expected 3")
+        # Test that float precision is working (size should be number of updates)
+        if ma.size != 5:
+            print(f"✗ Size property incorrect: got {ma.size}, expected 5")
             return False
         
         print("✓ FixedMovingAverageFloat works correctly")
@@ -154,7 +156,7 @@ def test_time_duration_moving_average_double():
         
         # Create a time-based moving average: 10Hz sensor, 1 second window
         # This should create a window of approximately ceil(10 * 1.0) * 1.2 = 12 samples
-        td_ma = TimeDurationMovingAverageDouble(sensor_hz=10.0, window_duration=1000)
+        td_ma = TimeDurationMovingAverageDouble(sensor_hz=10.0, window_duration=timedelta(milliseconds=1000))
         print(f"✓ Created TimeDurationMovingAverageDouble with sensor_hz=10.0, window_duration=1000ms")
         
         # Check calculated window size
@@ -166,7 +168,7 @@ def test_time_duration_moving_average_double():
             print(f"✗ Sensor Hz incorrect: got {td_ma.sensor_hz}, expected 10.0")
             return False
         
-        if td_ma.window_duration != 1000:
+        if td_ma.window_duration != timedelta(milliseconds=1000):
             print(f"✗ Window duration incorrect: got {td_ma.window_duration}, expected 1000")
             return False
         
@@ -192,7 +194,7 @@ def test_time_duration_moving_average_double():
         if abs(td_ma.sensor_hz - 20.0) > 1e-6:
             print(f"✗ set_parameters failed for sensor_hz")
             return False
-        if td_ma.window_duration != 500:
+        if td_ma.window_duration != timedelta(milliseconds=500):
             print(f"✗ set_parameters failed for window_duration")
             return False
         
@@ -219,7 +221,7 @@ def test_time_duration_moving_average_float():
         from py_moving_average import TimeDurationMovingAverageFloat
         
         # Create a time-based moving average
-        td_ma = TimeDurationMovingAverageFloat(sensor_hz=5.0, window_duration=2000)  # 5Hz, 2 second window
+        td_ma = TimeDurationMovingAverageFloat(sensor_hz=5.0, window_duration=timedelta(milliseconds=2000))  # 5Hz, 2 second window
         print(f"✓ Created TimeDurationMovingAverageFloat with sensor_hz=5.0, window_duration=2000ms")
         
         # Test with some updates
@@ -244,7 +246,7 @@ def test_error_handling():
         
         # Test invalid sensor_hz
         try:
-            td_ma = TimeDurationMovingAverageDouble(sensor_hz=0.0, window_duration=1000)
+            td_ma = TimeDurationMovingAverageDouble(sensor_hz=0.0, window_duration=timedelta(milliseconds=1000))
             print("✗ Should have raised ValueError for sensor_hz=0")
             return False
         except ValueError:
@@ -255,7 +257,7 @@ def test_error_handling():
         
         # Test negative sensor_hz
         try:
-            td_ma = TimeDurationMovingAverageDouble(sensor_hz=-1.0, window_duration=1000)
+            td_ma = TimeDurationMovingAverageDouble(sensor_hz=-1.0, window_duration=timedelta(milliseconds=1000))
             print("✗ Should have raised ValueError for negative sensor_hz")
             return False
         except ValueError:

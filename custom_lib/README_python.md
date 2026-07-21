@@ -70,8 +70,8 @@ from py_moving_average.main import (
 ```python
 from py_moving_average.main import FixedMovingAverageDouble
 
-# Create a moving average with window size of 10 samples
-ma = FixedMovingAverageDouble(10)
+# Create a moving average (uses full buffer capacity)
+ma = FixedMovingAverageDouble()  # Uses 1000 sample buffer by default
 
 # Update with values and get current average
 values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
@@ -138,16 +138,14 @@ ma.set_window_duration(500)  # Change to 0.5 second window
 ```python
 FixedMovingAverageDouble(sample_count=1000)
 ```
-- `sample_count`: Number of samples in the averaging window (default: buffer capacity)
+- `sample_count`: Validation parameter - ensures it doesn't exceed buffer capacity (default: buffer capacity)
+- Note: The actual buffer size is determined by the template parameter and cannot be changed at runtime
 
 #### TimeDurationMovingAverage
 
 ```python
 # With both sensor rate and window duration
 TimeDurationMovingAverageDouble(sensor_hz, window_duration)
-
-# With just window duration (sensor_hz defaults to 1.0)
-TimeDurationMovingAverageDouble(window_duration)
 ```
 - `sensor_hz`: Expected sample rate in Hz (samples per second)
 - `window_duration`: Time window for averaging in milliseconds

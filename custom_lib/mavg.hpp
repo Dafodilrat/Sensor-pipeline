@@ -101,15 +101,15 @@ public:
 // This class automatically calculates the appropriate buffer size based on:
 // - sensor_hz: Expected sample rate in Hz (samples per second)
 // - window_duration: Time window for averaging
-// The calculated window size = ceil(sensor_hz * window_duration_seconds) + safety_margin
+// The calculated window size = ceil(sensor_hz * window_duration_seconds) * 1.2
 // =============================================================================
 template<typename T, size_t MaxSamples>
 class TimeDurationMovingAverage : public FixedMovingAverage<T, MaxSamples> {
 private:
-    std::chrono::milliseconds window_duration_;
-    double sensor_hz_;
-    size_t calculated_window_size_;
     RingBuffer<std::chrono::steady_clock::time_point, MaxSamples> timestamp_buffer_;
+    double sensor_hz_;
+    std::chrono::milliseconds window_duration_;
+    size_t calculated_window_size_;
 
     double safeUpdateSum(double current, double delta, const char* operation) {
         double test = current + delta;
@@ -162,8 +162,8 @@ public:
     // Constructor with sensor Hz and window duration
     // Automatically calculates the optimal window size
     explicit TimeDurationMovingAverage(double sensor_hz, std::chrono::milliseconds duration)
-        : window_duration_(duration),
-          sensor_hz_(sensor_hz),
+        : sensor_hz_(sensor_hz),
+          window_duration_(duration),
           calculated_window_size_(calculateWindowSize(sensor_hz, duration, MaxSamples)) {
         
         if (calculated_window_size_ > MaxSamples) {
@@ -174,11 +174,6 @@ public:
             );
         }
     }
-
-    // Constructor with just duration (assumes sensor will provide ~1 sample per time unit)
-    // This maintains backward compatibility
-    explicit TimeDurationMovingAverage(std::chrono::milliseconds duration)
-        : TimeDurationMovingAverage(1.0, duration) {}
 
     T update(T new_value) override {
         auto now = std::chrono::steady_clock::now();
@@ -275,13 +270,5 @@ namespace MovingAverageFactory {
         std::chrono::milliseconds duration
     ) {
         return TimeDurationMovingAverage<T, MaxSamples>(sensor_hz, duration);
-    }
-
-    // Create time duration average with just duration (backward compatible)
-    template<typename T, size_t MaxSamples>
-    TimeDurationMovingAverage<T, MaxSamples> createTimeDurationAverage(
-        std::chrono::milliseconds duration
-    ) {
-        return TimeDurationMovingAverage<T, MaxSamples>(duration);
     }
 }
