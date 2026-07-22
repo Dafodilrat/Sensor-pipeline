@@ -10,31 +10,15 @@
 #include <chrono>
 
 // =============================================================================
-// LowPassFilter: First-order IIR low-pass filter implementation
-// 
-// For floating-point types: standard IIR filter with alpha computed from cutoff frequency and dt
-// For integer types: fixed-point implementation without floating-point arithmetic in update path
-//
-// Key formula: alpha = dt / (rc + dt) where rc = 1 / (2 * pi * cutoff_freq)
-// For non-uniform sampling: alpha must be recomputed for each sample based on actual dt
+// BaseFilter: Abstract base class for all filters
+// Provides common functionality: cutoff frequency, timeout, RC calculation, alpha computation
 // =============================================================================
 
-// Forward declarations for the filter base classes
-template<typename T, size_t MaxSamples>
-class LowPassFilter;
-
-// =============================================================================
-// FloatLowPassFilter: Floating-point IIR low-pass filter
-// Uses standard floating-point arithmetic, alpha recomputed per sample
-// =============================================================================
-
-template<typename T, size_t MaxSamples = 1000>
-class FloatLowPassFilter {
-private:
-    T previous_output_;
+template<typename T>
+class BaseFilter {
+protected:
     double cutoff_freq_hz_;
     double timeout_seconds_;
-    std::chrono::steady_clock::time_point last_timestamp_;
     bool first_call_;
     
     // RC time constant: rc = 1 / (2 * pi * cutoff_freq)
@@ -43,92 +27,48 @@ private:
     }
     
     // Compute alpha from dt: alpha = dt / (rc + dt)
+    // Returns alpha clamped to [0, 1] for numerical robustness
     double compute_alpha(double dt) const {
         if (cutoff_freq_hz_ <= 0.0) {
             throw std::invalid_argument("Cutoff frequency must be positive");
         }
         double rc = compute_rc();
         double alpha = dt / (rc + dt);
-        
-        // Clamp alpha to valid range [0, 1] to handle edge cases
-        alpha = std::clamp(alpha, 0.0, 1.0);
-        return alpha;
+        return std::clamp(alpha, 0.0, 1.0);
     }
-
-public:
-    // Constructor: cutoff_freq_hz is the cutoff frequency in Hz, timeout_seconds is the max dt before reset (default: 10.0s)
-    explicit FloatLowPassFilter(double cutoff_freq_hz, double timeout_seconds = 10.0)
-        : previous_output_(0.0),
-          cutoff_freq_hz_(cutoff_freq_hz),
-          timeout_seconds_(timeout_seconds),
-          last_timestamp_(std::chrono::steady_clock::now()),
-          first_call_(true) {
-        
-        if (cutoff_freq_hz <= 0.0) {
-            throw std::invalid_argument("Cutoff frequency must be positive");
-        }
+    
+    // Validate timeout value
+    static void validate_timeout(double timeout_seconds) {
         if (timeout_seconds <= 0.0) {
             throw std::invalid_argument("Timeout must be positive");
         }
     }
     
-    // Update with new value and timestamp
-    // dt is computed from the timestamp difference
-    T update(T new_value, std::chrono::steady_clock::time_point timestamp) {
-        auto current_time = timestamp;
-        
-        if (first_call_) {
-            previous_output_ = new_value;
-            last_timestamp_ = current_time;
-            first_call_ = false;
-            return previous_output_;
-        }
-        
-        // Compute dt in seconds
-        double dt = std::chrono::duration<double>(current_time - last_timestamp_).count();
-        
-        // Handle edge cases
-        if (dt <= 0.0) {
-            // Same or earlier timestamp - return previous output
-            return previous_output_;
-        }
-        
-        // Keep dt reasonable to avoid numerical issues
-        if (dt > timeout_seconds_) {  // More than timeout gap - reset filter
-            previous_output_ = new_value;
-            last_timestamp_ = current_time;
-            return previous_output_;
-        }
-        
-        // Compute alpha for this specific dt
-        double alpha = compute_alpha(dt);
-        
-        // IIR filter: output = alpha * input + (1 - alpha) * previous_output
-        T output = static_cast<T>(alpha * new_value + (1.0 - alpha) * previous_output_);
-        
-        previous_output_ = output;
-        last_timestamp_ = current_time;
-        
-        return output;
-    }
-    
-    // Simplified update without explicit timestamp (uses system clock)
-    T update(T new_value) {
-        return update(new_value, std::chrono::steady_clock::now());
-    }
-    
-    // Reset filter state
-    void reset() {
-        previous_output_ = 0.0;
-        last_timestamp_ = std::chrono::steady_clock::now();
-        first_call_ = true;
-    }
-    
-    // Set new cutoff frequency
-    void set_cutoff_frequency(double cutoff_freq_hz) {
+    // Validate cutoff frequency value
+    static void validate_cutoff_frequency(double cutoff_freq_hz) {
         if (cutoff_freq_hz <= 0.0) {
             throw std::invalid_argument("Cutoff frequency must be positive");
         }
+    }
+
+public:
+    // Constructor with cutoff frequency and timeout
+    explicit BaseFilter(double cutoff_freq_hz, double timeout_seconds = 10.0)
+        : cutoff_freq_hz_(cutoff_freq_hz),
+          timeout_seconds_(timeout_seconds),
+          first_call_(true) {
+        validate_cutoff_frequency(cutoff_freq_hz);
+        validate_timeout(timeout_seconds);
+    }
+    
+    virtual ~BaseFilter() = default;
+    
+    // Reset filter state - to be implemented by derived classes
+    virtual void reset() = 0;
+    
+    // Set new cutoff frequency
+    void set_cutoff_frequency(double cutoff_freq_hz) {
+        validate_cutoff_frequency(cutoff_freq_hz);
         cutoff_freq_hz_ = cutoff_freq_hz;
     }
     
@@ -137,22 +77,122 @@ public:
         return cutoff_freq_hz_;
     }
     
-    // Get current output (latest filtered value)
-    T get_current_output() const {
-        return previous_output_;
-    }
-    
     // Set timeout for reset on large dt gaps
     void set_timeout(double timeout_seconds) {
-        if (timeout_seconds <= 0.0) {
-            throw std::invalid_argument("Timeout must be positive");
-        }
+        validate_timeout(timeout_seconds);
         timeout_seconds_ = timeout_seconds;
     }
     
     // Get current timeout value
     double get_timeout() const {
         return timeout_seconds_;
+    }
+    
+    // Check if this is the first call (useful for derived classes)
+    bool is_first_call() const {
+        return first_call_;
+    }
+    
+    // Mark first call as complete
+    void mark_first_call_complete() {
+        first_call_ = false;
+    }
+};
+
+// =============================================================================
+// BaseIIRFilter: Base class for IIR (Infinite Impulse Response) filters
+// Provides common IIR functionality: previous output, update template method
+// =============================================================================
+
+template<typename T>
+class BaseIIRFilter : public BaseFilter<T> {
+protected:
+    T previous_output_;
+    
+    // Apply IIR filter formula: output = alpha * input + (1 - alpha) * previous_output
+    T apply_iir_filter(T new_value, double alpha) {
+        return static_cast<T>(alpha * new_value + (1.0 - alpha) * this->previous_output_);
+    }
+
+public:
+    explicit BaseIIRFilter(double cutoff_freq_hz, double timeout_seconds = 10.0)
+        : BaseFilter<T>(cutoff_freq_hz, timeout_seconds),
+          previous_output_(T(0)) {}
+    
+    ~BaseIIRFilter() override = default;
+    
+    // Reset filter state
+    void reset() override {
+        this->previous_output_ = T(0);
+        this->mark_first_call_complete(); // Reset first call flag
+    }
+    
+    // Get current output (latest filtered value)
+    virtual T get_current_output() const {
+        return previous_output_;
+    }
+};
+
+// =============================================================================
+// FloatLowPassFilter: Floating-point IIR low-pass filter
+// Uses standard floating-point arithmetic, alpha recomputed per sample
+// 
+// Template parameters:
+//   T: floating-point type (double, float)
+//   MaxSamples: buffer size for future extensions (currently unused)
+// =============================================================================
+
+template<typename T = double, size_t MaxSamples = 1000>
+class FloatLowPassFilter : public BaseIIRFilter<T> {
+private:
+    std::chrono::steady_clock::time_point last_timestamp_;
+
+public:
+    explicit FloatLowPassFilter(double cutoff_freq_hz, double timeout_seconds = 10.0)
+        : BaseIIRFilter<T>(cutoff_freq_hz, timeout_seconds),
+          last_timestamp_(std::chrono::steady_clock::now()) {
+        // Base constructor already validates parameters
+    }
+    
+    // Update with new value and timestamp
+    T update(T new_value, std::chrono::steady_clock::time_point timestamp) {
+        auto current_time = timestamp;
+        
+        if (this->is_first_call()) {
+            this->previous_output_ = new_value;
+            last_timestamp_ = current_time;
+            this->mark_first_call_complete();
+            return this->previous_output_;
+        }
+        
+        // Compute dt in seconds
+        double dt = std::chrono::duration<double>(current_time - last_timestamp_).count();
+        
+        // Handle edge cases
+        if (dt <= 0.0) {
+            return this->previous_output_;
+        }
+        
+        // Keep dt reasonable to avoid numerical issues
+        if (dt > this->timeout_seconds_) {
+            this->previous_output_ = new_value;
+            last_timestamp_ = current_time;
+            return this->previous_output_;
+        }
+        
+        // Compute alpha for this specific dt
+        double alpha = this->compute_alpha(dt);
+        
+        // Apply IIR filter
+        this->previous_output_ = this->apply_iir_filter(new_value, alpha);
+        last_timestamp_ = current_time;
+        
+        return this->previous_output_;
+    }
+    
+    // Simplified update without explicit timestamp (uses system clock)
+    T update(T new_value) {
+        return update(new_value, std::chrono::steady_clock::now());
     }
 };
 
@@ -168,21 +208,20 @@ public:
 // - All multiplications use integer arithmetic with appropriate scaling
 // - Rounding: round to nearest, ties to even (banker's rounding for consistency)
 // - Saturation: clamps to int32_t range to prevent silent overflow
+//
+// Template parameters:
+//   FractionalBits: number of fractional bits in Q-format (default: 16)
 // =============================================================================
 
 template<int FractionalBits = 16>
-class FixedPointLowPassFilter {
+class FixedPointLowPassFilter : public BaseFilter<int32_t> {
 private:
     static constexpr int32_t Q_SCALE = 1 << FractionalBits;
-    static constexpr int64_t Q_SCALE_64 = static_cast<int64_t>(Q_SCALE) << FractionalBits;
     
     int32_t previous_output_q_;
-    double cutoff_freq_hz_;
     double rc_;  // Precomputed RC time constant
-    double timeout_seconds_;
     
     std::chrono::steady_clock::time_point last_timestamp_;
-    bool first_call_;
     
     // Integer type for internal calculations
     using CalcType = int64_t;
@@ -191,8 +230,8 @@ private:
     static int32_t to_q(double value) {
         // Clamp to valid range first
         double clamped = std::clamp(value, 
-                                   static_cast<double>(std::numeric_limits<int32_t>::min() / Q_SCALE),
-                                   static_cast<double>(std::numeric_limits<int32_t>::max() / Q_SCALE));
+                                   static_cast<double>(std::numeric_limits<int32_t>::min()) / Q_SCALE,
+                                   static_cast<double>(std::numeric_limits<int32_t>::max()) / Q_SCALE);
         return static_cast<int32_t>(std::round(clamped * Q_SCALE));
     }
     
@@ -214,10 +253,9 @@ private:
     }
     
     // Saturating multiplication for Q-format
-    // Multiply two Q-format values and return Q-format result
     static int32_t sat_mul_q(int32_t a, int32_t b) {
         CalcType result = static_cast<CalcType>(a) * b;
-        // We have Q2.Q2 * Q2.Q2 = Q4.Q4, need to shift back to Q2.QFractionalBits
+        // Qn.Qn * Qn.Qn = Q2n.Q2n, need to shift back to Qn.Qn
         result >>= FractionalBits;
         
         if (result > std::numeric_limits<int32_t>::max()) {
@@ -230,12 +268,9 @@ private:
     }
     
     // Compute alpha in Q-format from dt
-    // alpha = dt / (rc + dt)
-    // This is the only place where we use double arithmetic, but it's not in the hot path
-    // when dt is known. For the integer update path, we precompute alpha_q and 1_alpha_q.
-    int32_t compute_alpha_q(double dt) {
-        if (dt <= 0.0) return 0;  // alpha = 0
-        if (dt >= rc_ * 1000.0) return Q_SCALE;  // alpha ≈ 1 for very large dt
+    int32_t compute_alpha_q(double dt) const {
+        if (dt <= 0.0) return 0;
+        if (dt >= rc_ * 1000.0) return Q_SCALE;
         
         double alpha = dt / (rc_ + dt);
         // Clamp to [0, 1] for numerical robustness
@@ -249,44 +284,34 @@ private:
     }
 
 public:
-    // Constructor: cutoff_freq_hz is the cutoff frequency in Hz, timeout_seconds is the max dt before reset (default: 10.0s)
+    // Constructor: cutoff_freq_hz is the cutoff frequency in Hz, timeout_seconds is the max dt before reset
     explicit FixedPointLowPassFilter(double cutoff_freq_hz, double timeout_seconds = 10.0)
-        : previous_output_q_(0),
-          cutoff_freq_hz_(cutoff_freq_hz),
+        : BaseFilter<int32_t>(cutoff_freq_hz, timeout_seconds),
+          previous_output_q_(0),
           rc_(1.0 / (2.0 * M_PI * cutoff_freq_hz)),
-          timeout_seconds_(timeout_seconds),
-          last_timestamp_(std::chrono::steady_clock::now()),
-          first_call_(true) {
-        
-        if (cutoff_freq_hz <= 0.0) {
-            throw std::invalid_argument("Cutoff frequency must be positive");
-        }
-        if (timeout_seconds <= 0.0) {
-            throw std::invalid_argument("Timeout must be positive");
-        }
+          last_timestamp_(std::chrono::steady_clock::now()) {
+        // Base constructor already validates parameters
     }
     
     // Update with integer value and timestamp
-    // This is the main update method - uses only integer arithmetic
     int32_t update(int32_t new_value, std::chrono::steady_clock::time_point timestamp) {
         auto current_time = timestamp;
         
-        if (first_call_) {
+        if (this->is_first_call()) {
             previous_output_q_ = to_q(static_cast<double>(new_value));
             last_timestamp_ = current_time;
-            first_call_ = false;
-            return new_value;  // Return original value for first call
+            this->mark_first_call_complete();
+            return new_value;
         }
         
-        // Compute dt in seconds (this uses double, but the task allows this
-        // as long as the update path doesn't use floating-point)
+        // Compute dt in seconds
         double dt = std::chrono::duration<double>(current_time - last_timestamp_).count();
         
         if (dt <= 0.0) {
-            return from_q(previous_output_q_);
+            return static_cast<int32_t>(std::round(from_q(previous_output_q_)));
         }
         
-        if (dt > timeout_seconds_) {  // Large gap - reset filter
+        if (dt > this->timeout_seconds_) {
             previous_output_q_ = to_q(static_cast<double>(new_value));
             last_timestamp_ = current_time;
             return new_value;
@@ -299,10 +324,8 @@ public:
         // Convert input to Q-format
         int32_t input_q = to_q(static_cast<double>(new_value));
         
-        // IIR filter in fixed-point:
+        // Apply IIR filter in fixed-point:
         // output_q = alpha_q * input_q + (1 - alpha_q) * previous_output_q
-        // Both multiplications are in Q-format
-        
         int32_t term1 = sat_mul_q(alpha_q, input_q);
         int32_t term2 = sat_mul_q(one_minus_alpha_q, previous_output_q_);
         int32_t output_q = sat_add(term1, term2);
@@ -310,7 +333,6 @@ public:
         previous_output_q_ = output_q;
         last_timestamp_ = current_time;
         
-        // Convert back to integer (round to nearest)
         return static_cast<int32_t>(std::round(from_q(output_q)));
     }
     
@@ -320,42 +342,15 @@ public:
     }
     
     // Reset filter state
-    void reset() {
+    void reset() override {
         previous_output_q_ = 0;
         last_timestamp_ = std::chrono::steady_clock::now();
-        first_call_ = true;
-    }
-    
-    // Set new cutoff frequency
-    void set_cutoff_frequency(double cutoff_freq_hz) {
-        if (cutoff_freq_hz <= 0.0) {
-            throw std::invalid_argument("Cutoff frequency must be positive");
-        }
-        cutoff_freq_hz_ = cutoff_freq_hz;
-        rc_ = 1.0 / (2.0 * M_PI * cutoff_freq_hz);
-    }
-    
-    // Get current cutoff frequency
-    double get_cutoff_frequency() const {
-        return cutoff_freq_hz_;
+        this->mark_first_call_complete();
     }
     
     // Get current Q-format output as double for debugging
     double get_current_output_double() const {
         return from_q(previous_output_q_);
-    }
-    
-    // Set timeout for reset on large dt gaps
-    void set_timeout(double timeout_seconds) {
-        if (timeout_seconds <= 0.0) {
-            throw std::invalid_argument("Timeout must be positive");
-        }
-        timeout_seconds_ = timeout_seconds;
-    }
-    
-    // Get current timeout value
-    double get_timeout() const {
-        return timeout_seconds_;
     }
     
     // Get Q format parameters for documentation
@@ -369,180 +364,63 @@ public:
 };
 
 // =============================================================================
-// Unified LowPassFilter interface that works with both float and int types
-// Uses SFINAE/tag dispatch to select appropriate implementation
-// =============================================================================
-
-// Helper traits to determine which implementation to use
-template<typename T>
-struct LowPassFilterImpl {
-    using Type = FloatLowPassFilter<T>;
-};
-
-// Specialization for integer types - only specialize for int16_t and int32_t
-// to avoid conflicts (int might be the same as int32_t)
-template<> struct LowPassFilterImpl<int16_t> {
-    using Type = FixedPointLowPassFilter<>;
-};
-
-template<> struct LowPassFilterImpl<int32_t> {
-    using Type = FixedPointLowPassFilter<>;
-};
-
-// Main unified LowPassFilter class
-template<typename T, size_t MaxSamples = 1000>
-class LowPassFilter {
-private:
-    typename LowPassFilterImpl<T>::Type impl_;
-    std::chrono::steady_clock::time_point last_timestamp_;
-    bool first_call_;
-
-public:
-    explicit LowPassFilter(double cutoff_freq_hz)
-        : impl_(cutoff_freq_hz),
-          last_timestamp_(std::chrono::steady_clock::now()),
-          first_call_(true) {
-        
-        if (cutoff_freq_hz <= 0.0) {
-            throw std::invalid_argument("Cutoff frequency must be positive");
-        }
-    }
-    
-    T update(T new_value, std::chrono::steady_clock::time_point timestamp) {
-        if (first_call_) {
-            auto result = impl_.update(new_value, timestamp);
-            last_timestamp_ = timestamp;
-            first_call_ = false;
-            return result;
-        }
-        
-        return impl_.update(new_value, timestamp);
-    }
-    
-    T update(T new_value) {
-        auto timestamp = std::chrono::steady_clock::now();
-        return update(new_value, timestamp);
-    }
-    
-    void reset() {
-        impl_.reset();
-        last_timestamp_ = std::chrono::steady_clock::now();
-        first_call_ = true;
-    }
-    
-    void set_cutoff_frequency(double cutoff_freq_hz) {
-        impl_.set_cutoff_frequency(cutoff_freq_hz);
-    }
-    
-    double get_cutoff_frequency() const {
-        return impl_.get_cutoff_frequency();
-    }
-    
-    // For floating-point types, get current output
-    template<typename U = T>
-    typename std::enable_if<std::is_floating_point<U>::value, U>::type
-    get_current_output() const {
-        // This cast is safe because impl_ is FloatLowPassFilter for floating-point T
-        return const_cast<FloatLowPassFilter<T, MaxSamples>&>(static_cast<const FloatLowPassFilter<T, MaxSamples>&>(impl_)).get_current_output();
-    }
-};
-
-// =============================================================================
 // VariadicLowPassFilter: Version that accepts variable dt directly
 // Useful when timestamp information is not available but dt is known
+// 
+// Template parameters:
+//   T: data type (double, float, int32_t)
+//   MaxSamples: buffer size for future extensions (currently unused)
 // =============================================================================
 
-template<typename T, size_t MaxSamples = 1000>
-class VariadicLowPassFilter {
-private:
-    T previous_output_;
-    double cutoff_freq_hz_;
-    double timeout_seconds_;
-    bool first_call_;
-    
-    // RC time constant
-    double compute_rc() const {
-        return 1.0 / (2.0 * M_PI * cutoff_freq_hz_);
-    }
-    
-    // Compute alpha from dt: alpha = dt / (rc + dt)
-    double compute_alpha(double dt) const {
-        if (cutoff_freq_hz_ <= 0.0) {
-            throw std::invalid_argument("Cutoff frequency must be positive");
-        }
-        double rc = compute_rc();
-        double alpha = dt / (rc + dt);
-        return std::clamp(alpha, 0.0, 1.0);
-    }
-
+template<typename T = double, size_t MaxSamples = 1000>
+class VariadicLowPassFilter : public BaseIIRFilter<T> {
 public:
     explicit VariadicLowPassFilter(double cutoff_freq_hz, double timeout_seconds = 10.0)
-        : previous_output_(0.0),
-          cutoff_freq_hz_(cutoff_freq_hz),
-          timeout_seconds_(timeout_seconds),
-          first_call_(true) {
-        
-        if (cutoff_freq_hz <= 0.0) {
-            throw std::invalid_argument("Cutoff frequency must be positive");
-        }
-        if (timeout_seconds <= 0.0) {
-            throw std::invalid_argument("Timeout must be positive");
-        }
+        : BaseIIRFilter<T>(cutoff_freq_hz, timeout_seconds) {
+        // Base constructor already validates parameters
     }
     
     // Update with value and dt (in seconds)
     T update_with_dt(T new_value, double dt) {
-        if (first_call_) {
-            previous_output_ = new_value;
-            first_call_ = false;
-            return previous_output_;
+        if (this->is_first_call()) {
+            this->previous_output_ = new_value;
+            this->mark_first_call_complete();
+            return this->previous_output_;
         }
         
         if (dt <= 0.0) {
-            return previous_output_;
+            return this->previous_output_;
         }
         
-        if (dt > timeout_seconds_) {  // Large gap - reset
-            previous_output_ = new_value;
-            return previous_output_;
+        if (dt > this->timeout_seconds_) {
+            this->previous_output_ = new_value;
+            return this->previous_output_;
         }
         
-        double alpha = compute_alpha(dt);
-        T output = static_cast<T>(alpha * new_value + (1.0 - alpha) * previous_output_);
-        previous_output_ = output;
-        return output;
+        double alpha = this->compute_alpha(dt);
+        this->previous_output_ = this->apply_iir_filter(new_value, alpha);
+        return this->previous_output_;
     }
     
-    void reset() {
-        previous_output_ = 0.0;
-        first_call_ = true;
-    }
-    
-    void set_cutoff_frequency(double cutoff_freq_hz) {
-        if (cutoff_freq_hz <= 0.0) {
-            throw std::invalid_argument("Cutoff frequency must be positive");
-        }
-        cutoff_freq_hz_ = cutoff_freq_hz;
-    }
-    
-    double get_cutoff_frequency() const {
-        return cutoff_freq_hz_;
-    }
-    
-    T get_current_output() const {
-        return previous_output_;
-    }
-    
-    // Set timeout for reset on large dt gaps
-    void set_timeout(double timeout_seconds) {
-        if (timeout_seconds <= 0.0) {
-            throw std::invalid_argument("Timeout must be positive");
-        }
-        timeout_seconds_ = timeout_seconds;
-    }
-    
-    // Get current timeout value
-    double get_timeout() const {
-        return timeout_seconds_;
+    // Reset filter state
+    void reset() override {
+        BaseIIRFilter<T>::reset();
     }
 };
+
+// =============================================================================
+// Type aliases for commonly used filter configurations
+// =============================================================================
+
+// Floating-point filters
+using FloatLowPassFilterDouble = FloatLowPassFilter<double>;
+using FloatLowPassFilterFloat = FloatLowPassFilter<float>;
+
+// Fixed-point filters  
+using FixedPointLowPassFilter16 = FixedPointLowPassFilter<16>;
+using FixedPointLowPassFilter32 = FixedPointLowPassFilter<32>;
+
+// Variadic filters
+using VariadicLowPassFilterDouble = VariadicLowPassFilter<double>;
+using VariadicLowPassFilterFloat = VariadicLowPassFilter<float>;
+using VariadicLowPassFilterInt32 = VariadicLowPassFilter<int32_t>;

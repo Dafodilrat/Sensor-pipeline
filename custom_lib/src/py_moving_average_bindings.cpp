@@ -62,7 +62,7 @@ void bind_TimeDurationMovingAverage(py::module& m, const char* className) {
 }
 
 // =============================================================================
-// Python Bindings for LowPassFilter (direct template bindings)
+// Python Bindings for LowPassFilter classes
 // =============================================================================
 
 template<typename T>
