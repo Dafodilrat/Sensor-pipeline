@@ -33,6 +33,7 @@ class FloatLowPassFilter {
 private:
     T previous_output_;
     double cutoff_freq_hz_;
+    double timeout_seconds_;
     std::chrono::steady_clock::time_point last_timestamp_;
     bool first_call_;
     
@@ -55,15 +56,19 @@ private:
     }
 
 public:
-    // Constructor: cutoff_freq_hz is the cutoff frequency in Hz
-    explicit FloatLowPassFilter(double cutoff_freq_hz)
+    // Constructor: cutoff_freq_hz is the cutoff frequency in Hz, timeout_seconds is the max dt before reset (default: 10.0s)
+    explicit FloatLowPassFilter(double cutoff_freq_hz, double timeout_seconds = 10.0)
         : previous_output_(0.0),
           cutoff_freq_hz_(cutoff_freq_hz),
+          timeout_seconds_(timeout_seconds),
           last_timestamp_(std::chrono::steady_clock::now()),
           first_call_(true) {
         
         if (cutoff_freq_hz <= 0.0) {
             throw std::invalid_argument("Cutoff frequency must be positive");
+        }
+        if (timeout_seconds <= 0.0) {
+            throw std::invalid_argument("Timeout must be positive");
         }
     }
     
@@ -89,7 +94,7 @@ public:
         }
         
         // Keep dt reasonable to avoid numerical issues
-        if (dt > 10.0) {  // More than 10 seconds gap - reset filter
+        if (dt > timeout_seconds_) {  // More than timeout gap - reset filter
             previous_output_ = new_value;
             last_timestamp_ = current_time;
             return previous_output_;
@@ -136,6 +141,19 @@ public:
     T get_current_output() const {
         return previous_output_;
     }
+    
+    // Set timeout for reset on large dt gaps
+    void set_timeout(double timeout_seconds) {
+        if (timeout_seconds <= 0.0) {
+            throw std::invalid_argument("Timeout must be positive");
+        }
+        timeout_seconds_ = timeout_seconds;
+    }
+    
+    // Get current timeout value
+    double get_timeout() const {
+        return timeout_seconds_;
+    }
 };
 
 // =============================================================================
@@ -161,6 +179,7 @@ private:
     int32_t previous_output_q_;
     double cutoff_freq_hz_;
     double rc_;  // Precomputed RC time constant
+    double timeout_seconds_;
     
     std::chrono::steady_clock::time_point last_timestamp_;
     bool first_call_;
@@ -219,6 +238,8 @@ private:
         if (dt >= rc_ * 1000.0) return Q_SCALE;  // alpha ≈ 1 for very large dt
         
         double alpha = dt / (rc_ + dt);
+        // Clamp to [0, 1] for numerical robustness
+        alpha = std::clamp(alpha, 0.0, 1.0);
         return to_q(alpha);
     }
     
@@ -228,16 +249,20 @@ private:
     }
 
 public:
-    // Constructor: cutoff_freq_hz is the cutoff frequency in Hz
-    explicit FixedPointLowPassFilter(double cutoff_freq_hz)
+    // Constructor: cutoff_freq_hz is the cutoff frequency in Hz, timeout_seconds is the max dt before reset (default: 10.0s)
+    explicit FixedPointLowPassFilter(double cutoff_freq_hz, double timeout_seconds = 10.0)
         : previous_output_q_(0),
           cutoff_freq_hz_(cutoff_freq_hz),
           rc_(1.0 / (2.0 * M_PI * cutoff_freq_hz)),
+          timeout_seconds_(timeout_seconds),
           last_timestamp_(std::chrono::steady_clock::now()),
           first_call_(true) {
         
         if (cutoff_freq_hz <= 0.0) {
             throw std::invalid_argument("Cutoff frequency must be positive");
+        }
+        if (timeout_seconds <= 0.0) {
+            throw std::invalid_argument("Timeout must be positive");
         }
     }
     
@@ -261,7 +286,7 @@ public:
             return from_q(previous_output_q_);
         }
         
-        if (dt > 10.0) {  // Large gap - reset filter
+        if (dt > timeout_seconds_) {  // Large gap - reset filter
             previous_output_q_ = to_q(static_cast<double>(new_value));
             last_timestamp_ = current_time;
             return new_value;
@@ -318,6 +343,19 @@ public:
     // Get current Q-format output as double for debugging
     double get_current_output_double() const {
         return from_q(previous_output_q_);
+    }
+    
+    // Set timeout for reset on large dt gaps
+    void set_timeout(double timeout_seconds) {
+        if (timeout_seconds <= 0.0) {
+            throw std::invalid_argument("Timeout must be positive");
+        }
+        timeout_seconds_ = timeout_seconds;
+    }
+    
+    // Get current timeout value
+    double get_timeout() const {
+        return timeout_seconds_;
     }
     
     // Get Q format parameters for documentation
@@ -419,6 +457,7 @@ class VariadicLowPassFilter {
 private:
     T previous_output_;
     double cutoff_freq_hz_;
+    double timeout_seconds_;
     bool first_call_;
     
     // RC time constant
@@ -437,13 +476,17 @@ private:
     }
 
 public:
-    explicit VariadicLowPassFilter(double cutoff_freq_hz)
+    explicit VariadicLowPassFilter(double cutoff_freq_hz, double timeout_seconds = 10.0)
         : previous_output_(0.0),
           cutoff_freq_hz_(cutoff_freq_hz),
+          timeout_seconds_(timeout_seconds),
           first_call_(true) {
         
         if (cutoff_freq_hz <= 0.0) {
             throw std::invalid_argument("Cutoff frequency must be positive");
+        }
+        if (timeout_seconds <= 0.0) {
+            throw std::invalid_argument("Timeout must be positive");
         }
     }
     
@@ -459,7 +502,7 @@ public:
             return previous_output_;
         }
         
-        if (dt > 10.0) {  // Large gap - reset
+        if (dt > timeout_seconds_) {  // Large gap - reset
             previous_output_ = new_value;
             return previous_output_;
         }
@@ -488,5 +531,18 @@ public:
     
     T get_current_output() const {
         return previous_output_;
+    }
+    
+    // Set timeout for reset on large dt gaps
+    void set_timeout(double timeout_seconds) {
+        if (timeout_seconds <= 0.0) {
+            throw std::invalid_argument("Timeout must be positive");
+        }
+        timeout_seconds_ = timeout_seconds;
+    }
+    
+    // Get current timeout value
+    double get_timeout() const {
+        return timeout_seconds_;
     }
 };

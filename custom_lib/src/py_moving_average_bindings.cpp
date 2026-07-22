@@ -70,16 +70,21 @@ void bind_FloatLowPassFilter(py::module& m, const char* className) {
     using Class = FloatLowPassFilter<T, 1000>;
     
     py::class_<Class>(m, className)
-        .def(py::init<double>(),
-             py::arg("cutoff_freq_hz"))
+        .def(py::init<double, double>(),
+             py::arg("cutoff_freq_hz"),
+             py::arg("timeout_seconds") = 10.0)
         .def("update", static_cast<T(Class::*)(T)>(&Class::update),
              py::arg("new_value"))
         .def("reset", &Class::reset)
         .def("set_cutoff_frequency", &Class::set_cutoff_frequency,
              py::arg("cutoff_freq_hz"))
         .def("get_cutoff_frequency", &Class::get_cutoff_frequency)
+        .def("set_timeout", &Class::set_timeout,
+             py::arg("timeout_seconds"))
+        .def("get_timeout", &Class::get_timeout)
         .def("get_current_output", &Class::get_current_output)
-        .def_property_readonly("cutoff_frequency", &Class::get_cutoff_frequency);
+        .def_property_readonly("cutoff_frequency", &Class::get_cutoff_frequency)
+        .def_property_readonly("timeout", &Class::get_timeout);
 }
 
 // Bind FixedPointLowPassFilter for Python
@@ -87,16 +92,21 @@ void bind_FixedPointLowPassFilter(py::module& m, const char* className) {
     using Class = FixedPointLowPassFilter<>;
     
     py::class_<Class>(m, className)
-        .def(py::init<double>(),
-             py::arg("cutoff_freq_hz"))
+        .def(py::init<double, double>(),
+             py::arg("cutoff_freq_hz"),
+             py::arg("timeout_seconds") = 10.0)
         .def("update", static_cast<int32_t(Class::*)(int32_t)>(&Class::update),
              py::arg("new_value"))
         .def("reset", &Class::reset)
         .def("set_cutoff_frequency", &Class::set_cutoff_frequency,
              py::arg("cutoff_freq_hz"))
         .def("get_cutoff_frequency", &Class::get_cutoff_frequency)
+        .def("set_timeout", &Class::set_timeout,
+             py::arg("timeout_seconds"))
+        .def("get_timeout", &Class::get_timeout)
         .def("get_current_output_double", &Class::get_current_output_double)
         .def_property_readonly("cutoff_frequency", &Class::get_cutoff_frequency)
+        .def_property_readonly("timeout", &Class::get_timeout)
         .def_static("get_q_fractional_bits", &Class::get_q_fractional_bits)
         .def_static("get_q_scale", &Class::get_q_scale);
 }
@@ -107,8 +117,9 @@ void bind_VariadicLowPassFilter(py::module& m, const char* className) {
     using Class = VariadicLowPassFilter<T, 1000>;
     
     py::class_<Class>(m, className)
-        .def(py::init<double>(),
-             py::arg("cutoff_freq_hz"))
+        .def(py::init<double, double>(),
+             py::arg("cutoff_freq_hz"),
+             py::arg("timeout_seconds") = 10.0)
         .def("update_with_dt", &Class::update_with_dt,
              py::arg("new_value"),
              py::arg("dt_seconds"))
@@ -116,6 +127,10 @@ void bind_VariadicLowPassFilter(py::module& m, const char* className) {
         .def("set_cutoff_frequency", &Class::set_cutoff_frequency,
              py::arg("cutoff_freq_hz"))
         .def("get_cutoff_frequency", &Class::get_cutoff_frequency)
+        .def("set_timeout", &Class::set_timeout,
+             py::arg("timeout_seconds"))
+        .def("get_timeout", &Class::get_timeout)
         .def("get_current_output", &Class::get_current_output)
-        .def_property_readonly("cutoff_frequency", &Class::get_cutoff_frequency);
+        .def_property_readonly("cutoff_frequency", &Class::get_cutoff_frequency)
+        .def_property_readonly("timeout", &Class::get_timeout);
 }

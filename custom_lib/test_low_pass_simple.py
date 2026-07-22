@@ -251,10 +251,73 @@ def test_error_handling():
         except Exception:
             print("✓ Correctly raised error for negative cutoff_freq")
         
+        # Test invalid timeout
+        try:
+            pma.VariadicLowPassFilter_Double(10.0, 0.0)
+            print("✗ Should have raised error for timeout=0")
+            return False
+        except Exception:
+            print("✓ Correctly raised error for timeout=0")
+        
+        try:
+            pma.VariadicLowPassFilter_Double(10.0, -1.0)
+            print("✗ Should have raised error for negative timeout")
+            return False
+        except Exception:
+            print("✓ Correctly raised error for negative timeout")
+        
         return True
         
     except Exception as e:
         print(f"✗ Test failed: {e}")
+        return False
+
+
+def test_timeout_functionality():
+    """Test timeout parameter functionality."""
+    print("\nTesting timeout functionality...")
+    
+    try:
+        import py_moving_average as pma
+        
+        # Test default timeout
+        lp = pma.VariadicLowPassFilter_Double(10.0)
+        assert lp.get_timeout() == 10.0, f"Default timeout should be 10.0, got {lp.get_timeout()}"
+        print("✓ Default timeout is 10.0 seconds")
+        
+        # Test custom timeout in constructor
+        lp2 = pma.VariadicLowPassFilter_Double(10.0, 5.0)
+        assert lp2.get_timeout() == 5.0, f"Custom timeout should be 5.0, got {lp2.get_timeout()}"
+        print("✓ Custom timeout in constructor works")
+        
+        # Test set_timeout
+        lp2.set_timeout(3.0)
+        assert lp2.get_timeout() == 3.0, f"Timeout should be updated to 3.0, got {lp2.get_timeout()}"
+        print("✓ set_timeout method works")
+        
+        # Test timeout behavior - dt > timeout should reset
+        lp3 = pma.VariadicLowPassFilter_Double(10.0, 2.0)
+        lp3.update_with_dt(0.0, 0.1)  # First call
+        result = lp3.update_with_dt(5.0, 3.0)  # dt > timeout
+        assert result == 5.0, f"dt > timeout should reset, got {result}"
+        print("✓ dt > timeout triggers reset")
+        
+        # Test dt <= timeout - normal filtering
+        result2 = lp3.update_with_dt(10.0, 1.0)  # dt < timeout
+        assert result2 != 10.0, f"dt < timeout should filter, got {result2}"
+        print("✓ dt <= timeout allows normal filtering")
+        
+        # Test FixedPoint filter timeout
+        lp_int = pma.FixedPointLowPassFilter_Integer(10.0, 7.0)
+        assert lp_int.get_timeout() == 7.0, f"FixedPoint timeout should work"
+        print("✓ FixedPoint filter timeout works")
+        
+        return True
+        
+    except Exception as e:
+        print(f"✗ Test failed: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
@@ -271,6 +334,7 @@ def main():
         test_cutoff_frequency_effect,
         test_non_uniform_dt,
         test_error_handling,
+        test_timeout_functionality,
     ]
     
     results = []
