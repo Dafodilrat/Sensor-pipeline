@@ -5,55 +5,32 @@
 // =============================================================================
 
 PYBIND11_MODULE(py_moving_average, m) {
-    m.doc() = "Python bindings for Moving Average Library";
+    m.doc() = "Python bindings for Moving Average and Low-Pass Filter Library";
 
     // Define common buffer sizes
     constexpr size_t MEDIUM_BUFFER = 1000;
 
     // =========================================================================
-    // Create FixedMovingAverage as a submodule with type-specific classes
-    // This allows: from py_moving_average import FixedMovingAverage
-    //             avg = FixedMovingAverage.Integer(100)  # max_buffer_size = 100
-    //             avg.update(5)
+    // FixedMovingAverage bindings
     // =========================================================================
-    
-    py::module_ fixedAvgModule = py::module_::create_submodule(
-        m, "FixedMovingAverage", "FixedMovingAverage with type-specific implementations");
-    
-    // Bind Integer version with custom buffer size support
-    bind_FixedMovingAverage<int, MEDIUM_BUFFER>(fixedAvgModule, "IntegerMovingAvg");
-    
-    // Bind Double version 
-    bind_FixedMovingAverage<double, MEDIUM_BUFFER>(fixedAvgModule, "DoubleMovingAvg");
-    
-    // Bind Float version
-    bind_FixedMovingAverage<float, MEDIUM_BUFFER>(fixedAvgModule, "FloatMovingAvg");
+    bind_FixedMovingAverage<int, MEDIUM_BUFFER>(m, "FixedMovingAverage_Int");
+    bind_FixedMovingAverage<double, MEDIUM_BUFFER>(m, "FixedMovingAverage_Double");
+    bind_FixedMovingAverage<float, MEDIUM_BUFFER>(m, "FixedMovingAverage_Float");
 
     // =========================================================================
-    // Create TimeDurationMovingAverage as a submodule
-    // This allows: from py_moving_average import TimeDurationMovingAverage
-    //             avg = TimeDurationMovingAverage.Integer(50.0, 100ms)
+    // TimeDurationMovingAverage bindings
     // =========================================================================
-    
-    py::module_ timeDurationAvgModule = py::module_::create_submodule(
-        m, "TimeDurationMovingAverage", "Time-based moving average with type-specific implementations");
-    
-    bind_TimeDurationMovingAverage<int, MEDIUM_BUFFER>(timeDurationAvgModule, "IntegerMovingAvg");
-    bind_TimeDurationMovingAverage<double, MEDIUM_BUFFER>(timeDurationAvgModule, "DoubleMovingAvg");
-    bind_TimeDurationMovingAverage<float, MEDIUM_BUFFER>(timeDurationAvgModule, "FloatMovingAvg");
+    bind_TimeDurationMovingAverage<int, MEDIUM_BUFFER>(m, "TimeDurationMovingAverage_Int");
+    bind_TimeDurationMovingAverage<double, MEDIUM_BUFFER>(m, "TimeDurationMovingAverage_Double");
+    bind_TimeDurationMovingAverage<float, MEDIUM_BUFFER>(m, "TimeDurationMovingAverage_Float");
 
     // =========================================================================
-    // Also expose the types directly in the main module for convenience
-    // This allows both:
-    //   FixedMovingAverage.Integer(...)   AND   IntegerAverage(...)
+    // LowPassFilter bindings
     // =========================================================================
-    
-    // Direct type bindings in main module
-    // bind_FixedMovingAverage<int, MEDIUM_BUFFER>(m, "IntegerAverage");
-    // bind_FixedMovingAverage<double, MEDIUM_BUFFER>(m, "FixedMovingAverage");
-    // bind_FixedMovingAverage<float, MEDIUM_BUFFER>(m, "FixedMovingAverageFloat");
-    
-    // bind_TimeDurationMovingAverage<int, MEDIUM_BUFFER>(m, "TimeDurationMovingAverageInt");
-    // bind_TimeDurationMovingAverage<double, MEDIUM_BUFFER>(m, "TimeDurationMovingAverage");
-    // bind_TimeDurationMovingAverage<float, MEDIUM_BUFFER>(m, "TimeDurationMovingAverageFloat");
+    bind_FloatLowPassFilter<double>(m, "FloatLowPassFilter_Double");
+    bind_FloatLowPassFilter<float>(m, "FloatLowPassFilter_Float");
+    bind_FixedPointLowPassFilter(m, "FixedPointLowPassFilter_Integer");
+    bind_VariadicLowPassFilter<double>(m, "VariadicLowPassFilter_Double");
+    bind_VariadicLowPassFilter<float>(m, "VariadicLowPassFilter_Float");
+    bind_VariadicLowPassFilter<int32_t>(m, "VariadicLowPassFilter_Integer");
 }

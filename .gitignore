@@ -39,3 +39,9 @@ CATKIN_IGNORE
 
 #test assignement
 confidential
+
+# Python build artifacts
+custom_lib/build/
+custom_lib/*.so
+*.pyc
+__pycache__/
