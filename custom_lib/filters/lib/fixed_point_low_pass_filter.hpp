@@ -2,7 +2,6 @@
 
 #include "base_filter.hpp"
 #include "../../../external/fpm/include/fpm/fixed.hpp"
-#include "../../tools/q_value.hpp"
 #include <cstddef>
 #include <limits>
 #include <algorithm>
@@ -31,7 +30,7 @@
 // Default: 16 fractional bits for int32_t (Q16.16), 32 for int64_t (Q32.32)
 // =============================================================================
 
-template<typename T, typename CalcT = qformat::DefaultCalcT<T>, int FractionalBits = (sizeof(T) == 4 ? 16 : 32)>
+template<typename T, typename CalcT = std::int64_t, int FractionalBits = (sizeof(T) == 4 ? 16 : 32)>
 class FixedPointLowPassFilter : public BaseFilter<T> {
 private:
     using FixedType = fpm::fixed<T, CalcT, FractionalBits>;
