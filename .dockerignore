@@ -1,0 +1,64 @@
+# =============================================================================
+# Docker Ignore File for naweRobotics
+# =============================================================================
+
+# Git
+.git
+.gitignore
+.gitmodules
+
+# Build artifacts
+build/
+build-*/
+*.so
+*.pyd
+*.pyc
+__pycache__/
+.egg-info/
+dist/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+
+# Docker
+Dockerfile
+docker-compose*
+.dockerignore
+
+# IDE
+.idea/
+.vs/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+.venv/
+venv/
+ENV/
+env/
+
+# Logs
+*.log
+
+# Documentation (keep if you want it in the image)
+# *.md
+# README*
+
+# Test results
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# ROS specific
+install/
+log/
+
+# Custom lib build output (will be rebuilt in Docker)
+custom_lib/build/
+custom_lib/filters/build/
