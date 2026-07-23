@@ -6,7 +6,7 @@
 // Include the actual template headers
 #include "../lib/fixed_moving_average.hpp"
 #include "../lib/time_duration_moving_average.hpp"
-#include "../../filters/lib/low_pass_filter.hpp"
+#include "../../filters/lib/float_low_pass_filter.hpp"
 
 namespace py = pybind11;
 
@@ -75,6 +75,10 @@ void bind_FloatLowPassFilter(py::module& m, const char* className) {
              py::arg("timeout_seconds") = 10.0)
         .def("update", static_cast<T(Class::*)(T)>(&Class::update),
              py::arg("new_value"))
+        .def("update_with_timestamp",
+             static_cast<T(Class::*)(T, std::chrono::steady_clock::time_point)>(&Class::update),
+             py::arg("new_value"),
+             py::arg("timestamp"))
         .def("reset", &Class::reset)
         .def("set_cutoff_frequency", &Class::set_cutoff_frequency,
              py::arg("cutoff_freq_hz"))
@@ -87,26 +91,5 @@ void bind_FloatLowPassFilter(py::module& m, const char* className) {
         .def_property_readonly("timeout", &Class::get_timeout);
 }
 
-// Bind FixedPointLowPassFilter for Python
-void bind_FixedPointLowPassFilter(py::module& m, const char* className) {
-    using Class = FixedPointLowPassFilter32;
-    
-    py::class_<Class>(m, className)
-        .def(py::init<double, double>(),
-             py::arg("cutoff_freq_hz"),
-             py::arg("timeout_seconds") = 10.0)
-        .def("update", static_cast<int32_t(Class::*)(int32_t)>(&Class::update),
-             py::arg("new_value"))
-        .def("reset", &Class::reset)
-        .def("set_cutoff_frequency", &Class::set_cutoff_frequency,
-             py::arg("cutoff_freq_hz"))
-        .def("get_cutoff_frequency", &Class::get_cutoff_frequency)
-        .def("set_timeout", &Class::set_timeout,
-             py::arg("timeout_seconds"))
-        .def("get_timeout", &Class::get_timeout)
-        .def("get_current_output_double", &Class::get_current_output_double)
-        .def_property_readonly("cutoff_frequency", &Class::get_cutoff_frequency)
-        .def_property_readonly("timeout", &Class::get_timeout)
-        .def_static("get_q_fractional_bits", &Class::get_q_fractional_bits)
-        .def_static("get_q_scale", &Class::get_q_scale);
-}
+// Note: FixedPointLowPassFilter classes are in py_filter module
+// to avoid naming conflicts. This module focuses on moving average filters.
