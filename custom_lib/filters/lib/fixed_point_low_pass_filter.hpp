@@ -1,7 +1,7 @@
 #pragma once
 
 #include "base_filter.hpp"
-#include "../../fpm/include/fpm/fixed.hpp"
+#include <fpm/fixed.hpp>
 #include <cstddef>
 #include <limits>
 #include <algorithm>
@@ -179,13 +179,12 @@ public:
 // Type aliases for commonly used fixed-point filter configurations
 // =============================================================================
 
-// int32_t filters (Q16.16 by default)
-using FixedPointLowPassFilter32 = FixedPointLowPassFilter<int32_t>;
+// int32_t filters with Q-format naming (integral_bits.fractional_bits)
+using FixedPointLowPassFilter_24_8 = FixedPointLowPassFilter<int32_t, int64_t, 8>;   // Q24.8 (24 integral, 8 fractional)
+using FixedPointLowPassFilter_16_16 = FixedPointLowPassFilter<int32_t, int64_t, 16>; // Q16.16 (16 integral, 16 fractional)
+using FixedPointLowPassFilter_8_24 = FixedPointLowPassFilter<int32_t, int64_t, 24>;  // Q8.24 (8 integral, 24 fractional)
+using FixedPointLowPassFilter_2_30 = FixedPointLowPassFilter<int32_t, int64_t, 30>;  // Q2.30 (2 integral, 30 fractional)
 
-// int64_t filters (Q32.32 by default)  
-using FixedPointLowPassFilter64 = FixedPointLowPassFilter<int64_t, int64_t>;
-
-// Specific fractional bit configurations
-using FixedPointLowPassFilter32_16 = FixedPointLowPassFilter<int32_t>;
-using FixedPointLowPassFilter32_32 = FixedPointLowPassFilter<int32_t, int64_t, 32>;
-using FixedPointLowPassFilter64_32 = FixedPointLowPassFilter<int64_t, int64_t, 32>;
+// Note: fpm library requires CalcT > BaseType and at least 1 integral bit.
+// We cannot provide a 64-bit storage version because it requires an intermediate type
+// larger than int64_t (like int128_t) which is not portable.

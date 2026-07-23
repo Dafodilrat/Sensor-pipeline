@@ -8,6 +8,11 @@
 #include <stdexcept>
 #include <chrono>
 
+// Ensure M_PI is defined
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 // =============================================================================
 // BaseFilter: Abstract base class for all filters
 // Provides common functionality: cutoff frequency, timeout, RC calculation, alpha computation
