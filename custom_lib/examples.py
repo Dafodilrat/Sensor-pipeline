@@ -286,13 +286,11 @@ def demo_running_data_time_duration_moving_average():
     # Create a time-based moving average with explicit parameters
     print("Creating TimeDurationMovingAverage Double...")
     print("  Window size: 12 samples")
-    print("  Sensor rate: 10.0 Hz")
     print("  Window duration: 1000ms")
     
-    td_ma = Double(12, 10.0, timedelta(milliseconds=1000))
+    td_ma = Double(12, timedelta(milliseconds=1000))
     
     print(f"\nFilter configuration:")
-    print(f"  Sensor rate: {td_ma.sensor_hz} Hz")
     print(f"  Window duration: {td_ma.window_duration}")
     print(f"  Max size: {td_ma.max_size}")
     
