@@ -16,7 +16,7 @@ void bind_MedianFilter(py::module& m, const char* className) {
     py::class_<MedianFilter<T, MaxWindowSize>>(m, className)
         .def(py::init<size_t>(),
              py::arg("window_size") = MaxWindowSize,
-             "Create a median filter with specified window size (max " + std::to_string(MaxWindowSize) + ")")
+             "Create a median filter with specified window size")
         .def("update", &MedianFilter<T, MaxWindowSize>::update,
              py::arg("new_value"),
              "Add a new value and return the current median")

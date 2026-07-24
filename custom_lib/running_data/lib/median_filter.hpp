@@ -44,13 +44,13 @@ struct SensorData {
 template<typename T, size_t MaxWindowSize = 101>
 class MedianFilter {
 private:
+    size_t window_size_;
+    size_t lower_capacity_;
+    size_t upper_capacity_;
     RingBuffer<SensorData<T, MaxWindowSize>, MaxWindowSize> window_;
     FixedHeap<SensorData<T, MaxWindowSize>, (MaxWindowSize + 1) / 2, MaxWindowSize, true> lower_;   // Max-heap for lower half
     FixedHeap<SensorData<T, MaxWindowSize>, (MaxWindowSize + 1) / 2, MaxWindowSize, false> upper_;  // Min-heap for upper half
     size_t next_position_ = 0;
-    size_t window_size_;
-    size_t lower_capacity_;
-    size_t upper_capacity_;
 
     // Balance heaps so lower_ has at most one more than upper_
     void rebalance() {
@@ -88,10 +88,11 @@ private:
 public:
     explicit MedianFilter(size_t window_size) 
         : window_size_(window_size),
-          lower_(calculateLowerCapacity(window_size)),
-          upper_(calculateUpperCapacity(window_size)),
           lower_capacity_(calculateLowerCapacity(window_size)),
-          upper_capacity_(calculateUpperCapacity(window_size)) {
+          upper_capacity_(calculateUpperCapacity(window_size)),
+          window_(),
+          lower_(calculateLowerCapacity(window_size)),
+          upper_(calculateUpperCapacity(window_size)) {
         if (window_size == 0) {
             throw std::invalid_argument("Window size must be positive");
         }

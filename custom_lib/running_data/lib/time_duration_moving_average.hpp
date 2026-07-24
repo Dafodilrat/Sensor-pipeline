@@ -66,8 +66,8 @@ public:
         // Push to main buffer - returns old value if buffer was full
         T old_value = this->buffer_.push(new_value);
 
-        // Push timestamp - returns old timestamp if buffer was full
-        auto old_timestamp = timestamp_buffer_.push(now);
+        // Push timestamp
+        timestamp_buffer_.push(now);
         
         removeExpiredSamples();
 

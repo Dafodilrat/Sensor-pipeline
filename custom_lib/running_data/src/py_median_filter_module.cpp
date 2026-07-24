@@ -59,17 +59,17 @@ PYBIND11_MODULE(py_median_filter, m) {
     // =========================================================================
     auto median_filter = m.def_submodule("MedianFilter", "Median filter with position tracking");
     
-    auto smallbuffer = median_filter.def_submodule("smallbuffer", "Small buffer (" + std::to_string(SMALL_BUFFER) + ") variants");
+    auto smallbuffer = median_filter.def_submodule("smallbuffer", "Small buffer variants");
     bind_MedianFilterIntSmall(smallbuffer);
     bind_MedianFilterFloatSmall(smallbuffer);
     bind_MedianFilterDoubleSmall(smallbuffer);
     
-    auto mediumbuffer = median_filter.def_submodule("mediumbuffer", "Medium buffer (" + std::to_string(MEDIUM_BUFFER) + ") variants");
+    auto mediumbuffer = median_filter.def_submodule("mediumbuffer", "Medium buffer variants");
     bind_MedianFilterIntMedium(mediumbuffer);
     bind_MedianFilterFloatMedium(mediumbuffer);
     bind_MedianFilterDoubleMedium(mediumbuffer);
     
-    auto largebuffer = median_filter.def_submodule("largebuffer", "Large buffer (" + std::to_string(LARGE_BUFFER) + ") variants");
+    auto largebuffer = median_filter.def_submodule("largebuffer", "Large buffer variants");
     bind_MedianFilterIntLarge(largebuffer);
     bind_MedianFilterFloatLarge(largebuffer);
     bind_MedianFilterDoubleLarge(largebuffer);

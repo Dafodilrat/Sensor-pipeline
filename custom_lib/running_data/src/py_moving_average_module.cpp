@@ -17,17 +17,17 @@ PYBIND11_MODULE(py_moving_average, m) {
     // =========================================================================
     auto fixed_ma = m.def_submodule("FixedMovingAverage", "Fixed size moving average filters");
     
-    auto smallbuffer = fixed_ma.def_submodule("smallbuffer", "Small buffer (100) variants");
+    auto smallbuffer = fixed_ma.def_submodule("smallbuffer", "Small buffer variants");
     bind_FixedMovingAverage<int, SMALL_BUFFER>(smallbuffer, "Integer");
     bind_FixedMovingAverage<double, SMALL_BUFFER>(smallbuffer, "Double");
     bind_FixedMovingAverage<float, SMALL_BUFFER>(smallbuffer, "Float");
     
-    auto mediumbuffer = fixed_ma.def_submodule("mediumbuffer", "Medium buffer (1000) variants");
+    auto mediumbuffer = fixed_ma.def_submodule("mediumbuffer", "Medium buffer variants");
     bind_FixedMovingAverage<int, MEDIUM_BUFFER>(mediumbuffer, "Integer");
     bind_FixedMovingAverage<double, MEDIUM_BUFFER>(mediumbuffer, "Double");
     bind_FixedMovingAverage<float, MEDIUM_BUFFER>(mediumbuffer, "Float");
     
-    auto largebuffer = fixed_ma.def_submodule("largebuffer", "Large buffer (10000) variants");
+    auto largebuffer = fixed_ma.def_submodule("largebuffer", "Large buffer variants");
     bind_FixedMovingAverage<int, LARGE_BUFFER>(largebuffer, "Integer");
     bind_FixedMovingAverage<double, LARGE_BUFFER>(largebuffer, "Double");
     bind_FixedMovingAverage<float, LARGE_BUFFER>(largebuffer, "Float");
@@ -37,17 +37,17 @@ PYBIND11_MODULE(py_moving_average, m) {
     // =========================================================================
     auto time_duration_ma = m.def_submodule("TimeDurationMovingAverage", "Time duration based moving average filters");
     
-    auto td_smallbuffer = time_duration_ma.def_submodule("smallbuffer", "Small buffer (100) variants");
+    auto td_smallbuffer = time_duration_ma.def_submodule("smallbuffer", "Small buffer variants");
     bind_TimeDurationMovingAverage<int, SMALL_BUFFER>(td_smallbuffer, "Integer");
     bind_TimeDurationMovingAverage<double, SMALL_BUFFER>(td_smallbuffer, "Double");
     bind_TimeDurationMovingAverage<float, SMALL_BUFFER>(td_smallbuffer, "Float");
     
-    auto td_mediumbuffer = time_duration_ma.def_submodule("mediumbuffer", "Medium buffer (1000) variants");
+    auto td_mediumbuffer = time_duration_ma.def_submodule("mediumbuffer", "Medium buffer variants");
     bind_TimeDurationMovingAverage<int, MEDIUM_BUFFER>(td_mediumbuffer, "Integer");
     bind_TimeDurationMovingAverage<double, MEDIUM_BUFFER>(td_mediumbuffer, "Double");
     bind_TimeDurationMovingAverage<float, MEDIUM_BUFFER>(td_mediumbuffer, "Float");
     
-    auto td_largebuffer = time_duration_ma.def_submodule("largebuffer", "Large buffer (10000) variants");
+    auto td_largebuffer = time_duration_ma.def_submodule("largebuffer", "Large buffer variants");
     bind_TimeDurationMovingAverage<int, LARGE_BUFFER>(td_largebuffer, "Integer");
     bind_TimeDurationMovingAverage<double, LARGE_BUFFER>(td_largebuffer, "Double");
     bind_TimeDurationMovingAverage<float, LARGE_BUFFER>(td_largebuffer, "Float");
