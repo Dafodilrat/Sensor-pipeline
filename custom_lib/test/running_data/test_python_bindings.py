@@ -300,8 +300,93 @@ def test_buffer_sizes():
         print(f"✗ Exception in buffer size test: {e}")
         return False
 
-
-
+def test_timeout_functionality():
+    """Test timeout reset functionality for moving average filters."""
+    print("\nTesting timeout functionality...")
+    
+    try:
+        from py_moving_average.FixedMovingAverage.mediumbuffer import Double
+        from py_moving_average.TimeDurationMovingAverage.mediumbuffer import Double as TD_Double
+        import time
+        
+        # Test 1: FixedMovingAverage with timeout disabled (default)
+        ma_no_timeout = Double(5)
+        if ma_no_timeout.timeout != -1.0:
+            print(f"✗ Default timeout should be -1.0, got {ma_no_timeout.timeout}")
+            return False
+        if ma_no_timeout.has_timeout:
+            print("✗ has_timeout should be False for default constructor")
+            return False
+        print("✓ Default timeout disabled works correctly")
+        
+        # Test 2: FixedMovingAverage with timeout enabled
+        timeout_val = 0.1
+        ma_with_timeout = Double(5, timeout_val)
+        if ma_with_timeout.timeout != timeout_val:
+            print(f"✗ Timeout should be {timeout_val}, got {ma_with_timeout.timeout}")
+            return False
+        if not ma_with_timeout.has_timeout:
+            print("✗ has_timeout should be True when timeout > 0")
+            return False
+        print("✓ Timeout parameter works correctly")
+        
+        # Test 3: set_timeout method
+        ma_no_timeout.set_timeout(0.2)
+        if ma_no_timeout.timeout != 0.2:
+            print(f"✗ set_timeout failed: got {ma_no_timeout.timeout}, expected 0.2")
+            return False
+        if not ma_no_timeout.has_timeout:
+            print("✗ has_timeout should be True after set_timeout(0.2)")
+            return False
+        print("✓ set_timeout method works correctly")
+        
+        # Test 4: Timeout reset behavior
+        ma_timeout = Double(5, 0.05)
+        for i in range(10):
+            ma_timeout.update(float(i))
+            time.sleep(0.01)
+        
+        if ma_timeout.size != 5:
+            print(f"✗ Size should be 5, got {ma_timeout.size}")
+            return False
+        print("✓ Rapid updates don't trigger timeout")
+        
+        time.sleep(0.06)
+        ma_timeout.update(100.0)
+        if ma_timeout.size != 1:
+            print(f"✗ Size should be 1 after timeout reset, got {ma_timeout.size}")
+            return False
+        print("✓ Timeout reset works correctly")
+        
+        # Test 5: TimeDurationMovingAverage with timeout
+        td_ma = TD_Double(5, timedelta(milliseconds=100), 0.05)
+        if td_ma.timeout != 0.05:
+            print(f"✗ TD_MA timeout should be 0.05, got {td_ma.timeout}")
+            return False
+        print("✓ TimeDurationMovingAverage timeout works correctly")
+        
+        # Test 6: Invalid timeout values
+        try:
+            Double(5, 0)
+            print("✗ Should have raised ValueError for timeout=0")
+            return False
+        except ValueError:
+            print("✓ Correctly raised ValueError for timeout=0")
+        
+        try:
+            Double(5, -1)
+            print("✗ Should have raised ValueError for timeout=-1")
+            return False
+        except ValueError:
+            print("✓ Correctly raised ValueError for negative timeout")
+        
+        return True
+        
+    except Exception as e:
+        print(f"✗ Exception in timeout test: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 def run_all_tests():
     """Run all tests and report results."""
     print("=" * 60)
@@ -316,6 +401,7 @@ def run_all_tests():
         ("TimeDurationMovingAverage Float", test_time_duration_moving_average_float),
         ("Error Handling", test_error_handling),
         ("Buffer Sizes", test_buffer_sizes),
+        ("Timeout Functionality", test_timeout_functionality),
     ]
     
     results = []
