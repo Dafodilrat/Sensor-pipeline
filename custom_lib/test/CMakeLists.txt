@@ -35,7 +35,7 @@ if(BUILD_TESTS)
             ${CMAKE_CURRENT_SOURCE_DIR}/test/filters/test_low_pass_filter.py
             ${CMAKE_CURRENT_SOURCE_DIR}/test/filters/test_low_pass_simple.py
             ${CMAKE_CURRENT_SOURCE_DIR}/test/test_filter_bindings.py
-            ${CMAKE_CURRENT_SOURCE_DIR}/test/moving_avg/test_python_bindings.py
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/running_data/test_python_bindings.py
             -v
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         COMMENT "Running Python tests with pytest"
@@ -54,10 +54,10 @@ if(BUILD_TESTS)
     
     add_custom_target(python_tests_moving_avg
         COMMAND ${Python3_EXECUTABLE} -m pytest
-            ${CMAKE_CURRENT_SOURCE_DIR}/test/moving_avg/
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/running_data/
             -v
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        COMMENT "Running moving average Python tests"
+        COMMENT "Running running data Python tests"
         VERBATIM
     )
 endif()
