@@ -25,19 +25,19 @@
 // Template parameters:
 //   T: Integer type for storage (int32_t, int64_t)
 //   CalcT: Integer type for intermediate calculations (default: wider type than T)
+//   FractionalBits: Number of fractional bits (unsigned int, default: 16 for int32_t, 32 for int64_t)
 //
 // The fractional bits can be configured via the constructor parameter.
-// Default: 16 fractional bits for int32_t (Q16.16), 32 for int64_t (Q32.32)
 // =============================================================================
 
-template<typename T, typename CalcT = std::int64_t, int FractionalBits = (sizeof(T) == 4 ? 16 : 32)>
+template<typename T, typename CalcT = std::int64_t, unsigned int FractionalBits = (sizeof(T) == 4 ? 16u : 32u)>
 class FixedPointLowPassFilter : public BaseFilter<T> {
 private:
     using FixedType = fpm::fixed<T, CalcT, FractionalBits>;
     
     FixedType previous_output_q_;
     double rc_;  // Precomputed RC time constant
-    int fractional_bits_;
+    unsigned int fractional_bits_;
     
     std::chrono::steady_clock::time_point last_timestamp_;
     
@@ -77,12 +77,11 @@ private:
 
 public:
     // Constructor: cutoff_freq_hz is the cutoff frequency in Hz
-    // fractional_bits determines the Q-format precision
-    // For T=int32_t: default 16 (Q16.16), for T=int64_t: default 32 (Q32.32)
+    // fractional_bits determines the Q-format precision (unsigned int)
     // timeout_seconds is the max dt before reset
     explicit FixedPointLowPassFilter(
         double cutoff_freq_hz, 
-        int fractional_bits = FractionalBits, 
+        unsigned int fractional_bits = FractionalBits, 
         double timeout_seconds = 10.0
     ) : BaseFilter<T>(cutoff_freq_hz, timeout_seconds),
         previous_output_q_(FixedType(0)),
@@ -165,7 +164,7 @@ public:
     }
     
     // Get fractional bits used
-    int get_fractional_bits() const {
+    unsigned int get_fractional_bits() const {
         return fractional_bits_;
     }
     
