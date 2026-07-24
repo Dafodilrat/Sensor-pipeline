@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>signal_processing_nodes</name>
+  <version>1.0.0</version>
+  <description>
+    ROS2 signal processing nodes that use the standalone signal processing library
+    to filter sensor data streams. Implements Part 3 of the task assignment.
+  </description>
+  
+  <maintainer email="user@example.com">Your Name</maintainer>
+  <license>Apache License 2.0</license>
+  
+  <!-- Build and export dependencies -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  
+  <!-- Depend on the sensor_streamer package for message types -->
+  <depend>sensor_streamer</depend>
+  
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
