@@ -69,8 +69,8 @@ Time-based moving average that behaves correctly under jittered/dropped samples.
 
 Features:
 - Configurable window by time duration
-- Configurable sensor rate
 - Handles non-uniform sampling correctly
+- Removes expired samples based on actual timestamps
 
 Available buffer sizes and types are the same as FixedMovingAverage.
 
@@ -106,15 +106,14 @@ from py_moving_average.TimeDurationMovingAverage.mediumbuffer import Double
 
 # Create a time-based moving average
 # window_size: max number of samples to store
-# sensor_hz: expected sensor rate
 # window_duration: time window for averaging
-td_ma = Double(100, 10.0, timedelta(milliseconds=1000))
+td_ma = Double(100, timedelta(milliseconds=1000))
 
-# Update with values (should be called at approximately sensor_hz rate)
+# Update with values
 avg = td_ma.update(100.5)
 
-# Set new parameters
-ma.set_parameters(sensor_hz=20.0, window_duration=timedelta(milliseconds=500))
+# Set new window duration
+ma.set_window_duration(timedelta(milliseconds=500))
 ```
 
 ## Median Filter
