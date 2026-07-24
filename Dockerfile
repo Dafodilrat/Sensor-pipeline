@@ -20,7 +20,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-dev \
     python3-pip \
     python3-venv \
+    curl \
+    tar \
     && rm -rf /var/lib/apt/lists/*
+
+# Install FPM (Fixed Point Math Library) - HEADERS ONLY
+# Download and install FPM headers for fixed-point arithmetic support
+RUN mkdir -p /tmp/fpm_install \
+    && cd /tmp/fpm_install \
+    && curl -sL https://codeload.github.com/MikePopoloski/fpm/tar.gz/v0.13.0 -o fpm.tar.gz \
+    && tar xzf fpm.tar.gz \
+    && mkdir -p /usr/local/include \
+    && cp -r fpm-0.13.0/include/fpm /usr/local/include/ \
+    && rm -rf /tmp/fpm_install
 
 # Install Python dependencies
 RUN pip install --no-cache-dir \
@@ -59,6 +71,7 @@ FROM ros:jazzy-ros-base
 ENV ROS_DOMAIN_ID=0
 ENV ROS_LOCALHOST_ONLY=0
 ENV PYTHONUNBUFFERED=1
+ENV FPM_ROOT=/usr/local
 
 # Create workspace directory
 WORKDIR /workspace
@@ -99,7 +112,18 @@ RUN echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc && \
 #     git \
 #     python3-dev \
 #     python3-pip \
+#     curl \
+#     tar \
 #     && rm -rf /var/lib/apt/lists/*
+#
+# # Install FPM headers
+# RUN mkdir -p /tmp/fpm_install \
+#     && cd /tmp/fpm_install \
+#     && curl -sL https://codeload.github.com/MikePopoloski/fpm/tar.gz/v0.13.0 -o fpm.tar.gz \
+#     && tar xzf fpm.tar.gz \
+#     && mkdir -p /usr/local/include \
+#     && cp -r fpm-0.13.0/include/fpm /usr/local/include/ \
+#     && rm -rf /tmp/fpm_install
 #
 # RUN pip install --no-cache-dir pybind11>=2.10.0
 #
