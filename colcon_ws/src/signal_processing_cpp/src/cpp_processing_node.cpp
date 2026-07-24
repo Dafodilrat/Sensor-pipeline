@@ -13,10 +13,10 @@
  * - ROS2 environment properly sourced
  * 
  * Usage:
- *     ros2 run signal_processing_nodes cpp_processing_node
- *     
+ *     ros2 run signal_processing_cpp cpp_processing_node
+ *      
  *     # With parameters
- *     ros2 run signal_processing_nodes cpp_processing_node --ros-args -p ma_window_size:=10 -p lp_cutoff:=5.0
+ *     ros2 run signal_processing_cpp cpp_processing_node --ros-args -p ma_window_size:=10 -p lp_cutoff:=5.0
  */
 
 #include <rclcpp/rclcpp.hpp>
@@ -55,20 +55,21 @@ public:
         double timeout_seconds = this->get_parameter("timeout_seconds").as_double();
 
         RCLCPP_INFO(this->get_logger(), 
-                   "Parameters: MA window=%d, LP cutoff=%.1fHz, Time-based MA=%s, FP bits=%d",
-                   ma_window_size, lp_cutoff_hz, use_time_based_ma ? "true" : "false", fixed_point_bits);
+                   "Parameters: MA window=%d, LP cutoff=%.1fHz, Time-based MA=%s, FP bits=%d, timeout=%.3fs",
+                   ma_window_size, lp_cutoff_hz, use_time_based_ma ? "true" : "false", fixed_point_bits, timeout_seconds);
 
-        // Initialize moving average filters
+        // Initialize moving average filters with timeout
+        // Timeout causes reset on dropout gaps > timeout_seconds
         if (use_time_based_ma) {
-            // Use time-based moving average with 500 max samples
+            // Use time-based moving average with 500 max samples and timeout
             ma_encoder_ = std::make_unique<TimeDurationMovingAverage<int, 500>>(
-                ma_window_size, std::chrono::milliseconds(static_cast<int>(ma_window_duration_ms)));
+                ma_window_size, std::chrono::milliseconds(static_cast<int>(ma_window_duration_ms)), timeout_seconds);
             ma_accel_ = std::make_unique<TimeDurationMovingAverage<double, 500>>(
-                ma_window_size, std::chrono::milliseconds(static_cast<int>(ma_window_duration_ms)));
+                ma_window_size, std::chrono::milliseconds(static_cast<int>(ma_window_duration_ms)), timeout_seconds);
         } else {
-            // Use fixed-size moving average with 500 max samples
-            ma_encoder_ = std::make_unique<FixedMovingAverage<int, 500>>(ma_window_size);
-            ma_accel_ = std::make_unique<FixedMovingAverage<double, 500>>(ma_window_size);
+            // Use fixed-size moving average with 500 max samples and timeout
+            ma_encoder_ = std::make_unique<FixedMovingAverage<int, 500>>(ma_window_size, timeout_seconds);
+            ma_accel_ = std::make_unique<FixedMovingAverage<double, 500>>(ma_window_size, timeout_seconds);
         }
 
         // Initialize low-pass filters based on fixed-point bits
