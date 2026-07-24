@@ -22,6 +22,7 @@ setup(
         'console_scripts': [
             'fixed_ma_node = signal_processing_py.fixed_ma_node:main',
             'time_ma_node = signal_processing_py.time_ma_node:main',
+            'lp_node = signal_processing_py.lp_node:main',
         ],
     },
 )
