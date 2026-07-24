@@ -8,10 +8,13 @@
 #include <type_traits>
 #include <cstdlib>
 #include <string>
+#include <chrono>
+#include <stdexcept>
 
 // =============================================================================
 // Fixed size moving average class
 // Maintains a fixed number of samples and calculates running average
+// Optionally resets on timeout when time gap between samples exceeds threshold
 // =============================================================================
 
 template<typename T, size_t MaxSamples>
@@ -19,6 +22,11 @@ class FixedMovingAverage {
 protected:
     RingBuffer<T, MaxSamples> buffer_;
     double sum_ = 0.0;
+    
+    // Timeout functionality
+    double timeout_seconds_;
+    std::chrono::steady_clock::time_point last_update_time_;
+    bool first_update_ = true;
 
     double safeUpdateSum(double current, double delta, const char* operation) {
         double test = current + delta;
@@ -49,18 +57,48 @@ protected:
             return static_cast<U>(value);
         }
     }
+    
+    // Validate timeout value
+    static void validate_timeout(double timeout_seconds) {
+        if (timeout_seconds <= 0.0) {
+            throw std::invalid_argument("Timeout must be positive");
+        }
+    }
 
 public:
-    // size parameter is passed to RingBuffer which handles the limit
-    explicit FixedMovingAverage(size_t size = MaxSamples) : buffer_(size) {
+    // Constructor with size and optional timeout
+    // timeout_seconds = -1.0 means no timeout (default behavior)
+    explicit FixedMovingAverage(size_t size = MaxSamples, double timeout_seconds = -1.0) 
+        : buffer_(size), 
+          timeout_seconds_(timeout_seconds) {
         if (size == 0) {
             throw std::invalid_argument("Size must be positive");
+        }
+        if (timeout_seconds > 0.0) {
+            validate_timeout(timeout_seconds);
         }
     }
 
     virtual ~FixedMovingAverage() = default;
 
     virtual T update(T new_value) {
+        auto now = std::chrono::steady_clock::now();
+        
+        // Check for timeout on first update (no previous time to compare)
+        if (first_update_) {
+            last_update_time_ = now;
+            first_update_ = false;
+        } else if (timeout_seconds_ > 0.0) {
+            // Calculate time since last update
+            auto dt = std::chrono::duration<double>(now - last_update_time_).count();
+            
+            // Reset if gap exceeds timeout
+            if (dt > timeout_seconds_) {
+                reset();
+            }
+        }
+        last_update_time_ = now;
+
         // push returns the removed value if buffer was full
         T old_value = buffer_.push(new_value);
 
@@ -83,6 +121,7 @@ public:
     virtual void reset() {
         buffer_.clear();
         sum_ = 0.0;
+        first_update_ = true;  // Reset first update flag so next update initializes timestamp
     }
 
     size_t currentSize() const {
@@ -95,5 +134,25 @@ public:
     
     size_t maxCapacity() const {
         return MaxSamples;
+    }
+    
+    // Set timeout for reset on large dt gaps
+    // timeout_seconds = -1.0 disables timeout
+    void set_timeout(double timeout_seconds) {
+        if (timeout_seconds > 0.0) {
+            validate_timeout(timeout_seconds);
+        }
+        timeout_seconds_ = timeout_seconds;
+    }
+    
+    // Get current timeout value
+    // Returns -1.0 if timeout is disabled
+    double get_timeout() const {
+        return timeout_seconds_;
+    }
+    
+    // Check if timeout is enabled
+    bool has_timeout() const {
+        return timeout_seconds_ > 0.0;
     }
 };

@@ -45,9 +45,11 @@ private:
     }
 
 public:
-    // Constructor with window duration only
-    explicit TimeDurationMovingAverage(size_t window_size, std::chrono::milliseconds duration)
-        : FixedMovingAverage<T, MaxSamples>(window_size),
+    // Constructor with window duration and optional timeout
+    // timeout_seconds = -1.0 means no timeout reset (default)
+    explicit TimeDurationMovingAverage(size_t window_size, std::chrono::milliseconds duration, 
+                                         double timeout_seconds = -1.0)
+        : FixedMovingAverage<T, MaxSamples>(window_size, timeout_seconds),
           timestamp_buffer_(window_size),
           window_duration_(duration) {
         
@@ -58,10 +60,25 @@ public:
                 "). Increase MaxSamples template parameter."
             );
         }
+        // Initialize first_update_ flag from parent
+        this->first_update_ = true;
     }
 
     T update(T new_value) override {
         auto now = std::chrono::steady_clock::now();
+
+        // Check for timeout reset (inherited from parent class)
+        // This checks if gap since last update exceeds timeout_seconds_
+        if (this->first_update_) {
+            this->last_update_time_ = now;
+            this->first_update_ = false;
+        } else if (this->timeout_seconds_ > 0.0) {
+            auto dt = std::chrono::duration<double>(now - this->last_update_time_).count();
+            if (dt > this->timeout_seconds_) {
+                reset();
+            }
+        }
+        this->last_update_time_ = now;
 
         // Push to main buffer - returns old value if buffer was full
         T old_value = this->buffer_.push(new_value);
@@ -90,6 +107,7 @@ public:
         this->buffer_.clear();
         timestamp_buffer_.clear();
         this->sum_ = 0.0;
+        this->first_update_ = true;  // Reset timestamp tracking
     }
 
     // Set the window duration
