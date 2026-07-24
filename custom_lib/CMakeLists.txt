@@ -17,86 +17,135 @@ else()
 endif()
 
 # =============================================================================
-# FPM Dependency (Fixed Point Math Library)
+# FPM Dependency (Fixed Point Math Library) - REQUIRED
 # =============================================================================
 
-# FPM is a header-only library for fixed-point arithmetic
-# We need to download it since it's not available in the container
+# FPM is a REQUIRED dependency for fixed-point filters
+# Users must ensure FPM is available in their build environment
 
-# Try to download FPM from GitHub using file(DOWNLOAD)
-# This avoids git dependency issues in containers
-set(FPM_URL "https://codeload.github.com/MikePopoloski/fpm/tar.gz/v0.13.0")
-set(FPM_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/fpm-download")
+# Option 1: Use system-installed FPM (recommended for production)
+#   - Install via package manager: apt install libfpm-dev (if available)
+#   - Or set FPM_ROOT environment variable pointing to FPM installation
 
-# Create download directory
-file(MAKE_DIRECTORY ${FPM_DOWNLOAD_DIR})
+# Option 2: Download automatically (for development/standalone builds)
+#   - Downloads from GitHub releases using HTTPS (no git required)
 
-# Download FPM tarball
-file(DOWNLOAD ${FPM_URL} ${FPM_DOWNLOAD_DIR}/fpm-0.13.0.tar.gz
-     STATUS fpm_download_status
-     LOG fpm_download_log
-     TIMEOUT 60
-)
+# First, check if FPM is available via find_package
+find_package(fpm QUIET)
 
-if(fpm_download_status EQUAL 0 AND EXISTS "${FPM_DOWNLOAD_DIR}/fpm-0.13.0.tar.gz")
-    # Extract the tarball
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E tar xzf ${FPM_DOWNLOAD_DIR}/fpm-0.13.0.tar.gz
-        WORKING_DIRECTORY ${FPM_DOWNLOAD_DIR}
-        RESULT_VARIABLE extract_result
-        OUTPUT_QUIET
-    )
-    
-    if(extract_result EQUAL 0 AND EXISTS "${FPM_DOWNLOAD_DIR}/fpm-0.13.0/include/fpm/fixed.hpp")
-        # FPM successfully downloaded and extracted
-        set(FPM_INCLUDE_DIR "${FPM_DOWNLOAD_DIR}/fpm-0.13.0/include")
-        message(STATUS "FPM downloaded and extracted to: ${FPM_DOWNLOAD_DIR}/fpm-0.13.0")
-    else()
-        message(WARNING "Failed to extract FPM tarball. Trying alternative method...")
-        set(FPM_INCLUDE_DIR "")
-    endif()
+if(fpm_FOUND)
+    # Use system-installed FPM
+    set(FPM_INCLUDE_DIR ${fpm_INCLUDE_DIRS})
+    message(STATUS "Found system-installed FPM: ${FPM_INCLUDE_DIR}")
 else()
-    message(WARNING "Failed to download FPM: ${fpm_download_log}")
-    message(WARNING "Status: ${fpm_download_status}")
-    
-    # Try alternative URL format
-    set(FPM_URL_ALT "https://codeload.github.com/MikePopoloski/fpm/tar.gz/refs/tags/v0.13.0")
-    file(DOWNLOAD ${FPM_URL_ALT} ${FPM_DOWNLOAD_DIR}/fpm-alt.tar.gz
-         STATUS fpm_alt_status
-         LOG fpm_alt_log
-         TIMEOUT 60
-    )
-    
-    if(fpm_alt_status EQUAL 0 AND EXISTS "${FPM_DOWNLOAD_DIR}/fpm-alt.tar.gz")
-        execute_process(
-            COMMAND ${CMAKE_COMMAND} -E tar xzf ${FPM_DOWNLOAD_DIR}/fpm-alt.tar.gz
-            WORKING_DIRECTORY ${FPM_DOWNLOAD_DIR}
-            RESULT_VARIABLE extract_alt_result
-            OUTPUT_QUIET
+    # Check if FPM_ROOT environment variable is set
+    if(DEFINED ENV{FPM_ROOT} AND EXISTS "$ENV{FPM_ROOT}/include/fpm/fixed.hpp")
+        set(FPM_INCLUDE_DIR "$ENV{FPM_ROOT}/include")
+        message(STATUS "Found FPM via FPM_ROOT: ${FPM_INCLUDE_DIR}")
+    else()
+        # Try to download FPM from GitHub releases
+        set(FPM_downloaded FALSE)
+        
+        # Primary URL: GitHub codeload service
+        set(FPM_URL "https://codeload.github.com/MikePopoloski/fpm/tar.gz/v0.13.0")
+        set(FPM_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/fpm-download")
+        
+        file(MAKE_DIRECTORY ${FPM_DOWNLOAD_DIR})
+        
+        message(STATUS "FPM not found. Attempting to download from GitHub...")
+        
+        # Download FPM tarball
+        file(DOWNLOAD ${FPM_URL} ${FPM_DOWNLOAD_DIR}/fpm-v0.13.0.tar.gz
+             STATUS fpm_download_status
+             LOG fpm_download_log
+             TIMEOUT 60
         )
         
-        if(extract_alt_result EQUAL 0 AND EXISTS "${FPM_DOWNLOAD_DIR}/fpm-0.13.0/include/fpm/fixed.hpp")
-            set(FPM_INCLUDE_DIR "${FPM_DOWNLOAD_DIR}/fpm-0.13.0/include")
-            message(STATUS "FPM downloaded (alt URL) and extracted to: ${FPM_DOWNLOAD_DIR}/fpm-0.13.0")
+        if(fpm_download_status EQUAL 0 AND EXISTS "${FPM_DOWNLOAD_DIR}/fpm-v0.13.0.tar.gz")
+            # Extract the tarball
+            execute_process(
+                COMMAND ${CMAKE_COMMAND} -E tar xzf ${FPM_DOWNLOAD_DIR}/fpm-v0.13.0.tar.gz
+                WORKING_DIRECTORY ${FPM_DOWNLOAD_DIR}
+                RESULT_VARIABLE extract_result
+                OUTPUT_QUIET
+            )
+            
+            if(extract_result EQUAL 0 AND EXISTS "${FPM_DOWNLOAD_DIR}/fpm-0.13.0/include/fpm/fixed.hpp")
+                set(FPM_INCLUDE_DIR "${FPM_DOWNLOAD_DIR}/fpm-0.13.0/include")
+                set(FPM_downloaded TRUE)
+                message(STATUS "Successfully downloaded FPM to: ${FPM_INCLUDE_DIR}")
+            else()
+                message(WARNING "Failed to extract FPM tarball")
+            endif()
         else()
-            message(WARNING "FPM is required for fixed-point filters. Trying to use local fallback...")
-            set(FPM_INCLUDE_DIR "")
+            message(WARNING "Failed to download FPM: ${fpm_download_log}")
+            
+            # Try backup URL
+            set(FPM_URL_BACKUP "https://codeload.github.com/MikePopoloski/fpm/tar.gz/ref/tags/v0.13.0")
+            message(STATUS "Trying backup URL...")
+            
+            file(DOWNLOAD ${FPM_URL_BACKUP} ${FPM_DOWNLOAD_DIR}/fpm-backup.tar.gz
+                 STATUS fpm_backup_status
+                 LOG fpm_backup_log
+                 TIMEOUT 60
+            )
+            
+            if(fpm_backup_status EQUAL 0 AND EXISTS "${FPM_DOWNLOAD_DIR}/fpm-backup.tar.gz")
+                execute_process(
+                    COMMAND ${CMAKE_COMMAND} -E tar xzf ${FPM_DOWNLOAD_DIR}/fpm-backup.tar.gz
+                    WORKING_DIRECTORY ${FPM_DOWNLOAD_DIR}
+                    RESULT_VARIABLE extract_backup_result
+                    OUTPUT_QUIET
+                )
+                
+                if(extract_backup_result EQUAL 0)
+                    # Find the extracted directory
+                    file(GLOB extracted_dir RELATIVE ${FPM_DOWNLOAD_DIR} ${FPM_DOWNLOAD_DIR}/fpm-*)
+                    if(extracted_dir)
+                        list(GET extracted_dir 0 first_dir)
+                        if(EXISTS "${FPM_DOWNLOAD_DIR}/${first_dir}/include/fpm/fixed.hpp")
+                            set(FPM_INCLUDE_DIR "${FPM_DOWNLOAD_DIR}/${first_dir}/include")
+                            set(FPM_downloaded TRUE)
+                            message(STATUS "Successfully downloaded FPM (backup URL) to: ${FPM_INCLUDE_DIR}")
+                        endif()
+                    endif()
+                endif()
+            else()
+                message(WARNING "Failed to download FPM from backup URL: ${fpm_backup_log}")
+            endif()
         endif()
-    else()
-        message(WARNING "FPM is required for fixed-point filters. Trying to use local fallback...")
-        set(FPM_INCLUDE_DIR "")
+        
+        # Final check
+        if(NOT FPM_downloaded)
+            message(FATAL_ERROR 
+                "\n"
+                "=============================================================================\n"
+                "FPM (Fixed Point Math Library) is REQUIRED for this project.\n"
+                "\n"
+                "To resolve this issue, please use ONE of the following options:\n"
+                "\n"
+                "OPTION 1: Install FPM system-wide\n"
+                "  - Linux (Debian/Ubuntu): sudo apt install libfpm-dev\n"
+                "  - Or build from source: https://github.com/MikePopoloski/fpm\n"
+                "\n"
+                "OPTION 2: Set FPM_ROOT environment variable\n"
+                "  export FPM_ROOT=/path/to/fpm/installation\n"
+                "  cmake .. -DFPM_ROOT=$FPM_ROOT\n"
+                "\n"
+                "OPTION 3: Ensure network access for automatic download\n"
+                "  - This build requires HTTPS access to GitHub\n"
+                "  - The automatic download may be blocked by firewall/proxy\n"
+                "\n"
+                "=============================================================================\n"
+            )
+        endif()
     endif()
 endif()
 
-# Check if we successfully got FPM
-if(NOT FPM_INCLUDE_DIR OR NOT EXISTS "${FPM_INCLUDE_DIR}/fpm/fixed.hpp")
-    # Last resort: create a warning and set empty path
-    # Fixed-point filters will not compile without FPM
-    message(WARNING "FPM library not available. Fixed-point filters will be disabled.")
-    message(WARNING "To enable fixed-point filters, ensure FPM is available at: ${FPM_INCLUDE_DIR}")
-    set(FPM_FOUND FALSE)
+# Verify FPM is available
+if(NOT EXISTS "${FPM_INCLUDE_DIR}/fpm/fixed.hpp")
+    message(FATAL_ERROR "FPM not found at: ${FPM_INCLUDE_DIR}\nPlease ensure FPM is properly installed.")
 else()
-    set(FPM_FOUND TRUE)
     message(STATUS "FPM include directory: ${FPM_INCLUDE_DIR}")
 endif()
 
@@ -128,39 +177,22 @@ target_include_directories(tools
 # Filters Library
 # =============================================================================
 
-# Build base filters (float) - these don't require FPM
 add_library(filters STATIC
     ${FILTERS_LIB_DIR}/base_filter.hpp
     ${FILTERS_LIB_DIR}/base_iir_filter.hpp
     ${FILTERS_LIB_DIR}/float_low_pass_filter.hpp
+    ${FILTERS_LIB_DIR}/fixed_point_low_pass_filter.hpp
 )
 
 target_include_directories(filters
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${FILTERS_LIB_DIR}
+        ${FPM_INCLUDE_DIR}
         ${TOOLS_DIR}
 )
 
 target_link_libraries(filters PUBLIC tools)
-
-# Build fixed-point filters only if FPM is available
-if(FPM_FOUND)
-    target_include_directories(filters
-        PUBLIC
-            ${FPM_INCLUDE_DIR}
-    )
-    
-    # Add fixed-point filter source files
-    target_sources(filters
-        PRIVATE
-            ${FILTERS_LIB_DIR}/fixed_point_low_pass_filter.hpp
-    )
-    
-    message(STATUS "Fixed-point filters enabled (FPM available)")
-else()
-    message(WARNING "Fixed-point filters disabled (FPM not available)")
-endif()
 
 # =============================================================================
 # Running Data Library (formerly Moving Average)
@@ -177,16 +209,9 @@ target_include_directories(running_data
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${RUNNING_DATA_LIB_DIR}
         ${FILTERS_LIB_DIR}
+        ${FPM_INCLUDE_DIR}
         ${TOOLS_DIR}
 )
-
-# Add FPM include directory if available
-if(FPM_FOUND)
-    target_include_directories(running_data
-        PUBLIC
-            ${FPM_INCLUDE_DIR}
-    )
-endif()
 
 target_link_libraries(running_data PUBLIC filters tools)
 
@@ -210,15 +235,8 @@ target_include_directories(py_filter
         ${pybind11_INCLUDE_DIRS}
         ${FILTERS_LIB_DIR}
         ${TOOLS_DIR}
+        ${FPM_INCLUDE_DIR}
 )
-
-# Add FPM include directory if available
-if(FPM_FOUND)
-    target_include_directories(py_filter
-        PRIVATE
-            ${FPM_INCLUDE_DIR}
-    )
-endif()
 
 target_link_libraries(py_filter
     PRIVATE
@@ -251,15 +269,8 @@ target_include_directories(py_median_filter
         ${pybind11_INCLUDE_DIRS}
         ${RUNNING_DATA_LIB_DIR}
         ${TOOLS_DIR}
+        ${FPM_INCLUDE_DIR}
 )
-
-# Add FPM include directory if available
-if(FPM_FOUND)
-    target_include_directories(py_median_filter
-        PRIVATE
-            ${FPM_INCLUDE_DIR}
-    )
-endif()
 
 target_link_libraries(py_median_filter
     PRIVATE
@@ -292,15 +303,8 @@ target_include_directories(py_moving_average
         ${RUNNING_DATA_LIB_DIR}
         ${FILTERS_LIB_DIR}
         ${TOOLS_DIR}
+        ${FPM_INCLUDE_DIR}
 )
-
-# Add FPM include directory if available
-if(FPM_FOUND)
-    target_include_directories(py_moving_average
-        PRIVATE
-            ${FPM_INCLUDE_DIR}
-    )
-endif()
 
 target_link_libraries(py_moving_average
     PRIVATE
