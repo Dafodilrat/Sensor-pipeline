@@ -51,14 +51,16 @@ message(STATUS "FPM include directory: ${FPM_INCLUDE_DIR}")
 
 set(TOOLS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tools)
 set(FILTERS_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/filters/lib)
-set(MOVING_AVG_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/moving_avg/lib)
+set(RUNNING_DATA_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/running_data/lib)
 
 # =============================================================================
-# Tools Library (RingBuffer)
+# Tools Library (RingBuffer, FixedHeap, FixedPriorityQueue)
 # =============================================================================
 
 add_library(tools STATIC
     ${TOOLS_DIR}/ring_buffer.hpp
+    ${TOOLS_DIR}/fixed_heap.hpp
+    ${TOOLS_DIR}/fixed_priority_queue.hpp
 )
 
 target_include_directories(tools
@@ -89,24 +91,25 @@ target_include_directories(filters
 target_link_libraries(filters PUBLIC tools)
 
 # =============================================================================
-# Moving Average Library
+# Running Data Library (formerly Moving Average)
 # =============================================================================
 
-add_library(moving_avg STATIC
-    ${MOVING_AVG_LIB_DIR}/fixed_moving_average.hpp
-    ${MOVING_AVG_LIB_DIR}/time_duration_moving_average.hpp
+add_library(running_data STATIC
+    ${RUNNING_DATA_LIB_DIR}/fixed_moving_average.hpp
+    ${RUNNING_DATA_LIB_DIR}/time_duration_moving_average.hpp
+    ${RUNNING_DATA_LIB_DIR}/median_filter.hpp
 )
 
-target_include_directories(moving_avg
+target_include_directories(running_data
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${MOVING_AVG_LIB_DIR}
+        ${RUNNING_DATA_LIB_DIR}
         ${FILTERS_LIB_DIR}
         ${TOOLS_DIR}
         ${FPM_INCLUDE_DIR}
 )
 
-target_link_libraries(moving_avg PUBLIC filters tools)
+target_link_libraries(running_data PUBLIC filters tools)
 
 # =============================================================================
 # py_filter Python Extension Module
@@ -147,19 +150,53 @@ set_target_properties(py_filter PROPERTIES
 )
 
 # =============================================================================
+# py_median_filter Python Extension Module (Demonstrates Extensibility)
+# This module can be added without modifying any existing files
+# =============================================================================
+
+add_library(py_median_filter MODULE
+    ${CMAKE_CURRENT_SOURCE_DIR}/running_data/src/median_filter_bindings.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/running_data/src/py_median_filter_module.cpp
+)
+
+target_include_directories(py_median_filter
+    PRIVATE
+        ${Python3_INCLUDE_DIRS}
+        ${pybind11_INCLUDE_DIRS}
+        ${RUNNING_DATA_LIB_DIR}
+        ${TOOLS_DIR}
+        ${FPM_INCLUDE_DIR}
+)
+
+target_link_libraries(py_median_filter
+    PRIVATE
+        running_data
+        tools
+        Python3::Python
+        pybind11::embed
+)
+
+# Set module name for Python
+set_target_properties(py_median_filter PROPERTIES
+    PREFIX ""
+    SUFFIX "${Python3_MODULE_EXTENSION}"
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/running_data
+)
+
+# =============================================================================
 # py_moving_average Python Extension Module
 # =============================================================================
 
 add_library(py_moving_average MODULE
-    ${CMAKE_CURRENT_SOURCE_DIR}/moving_avg/src/py_moving_average_bindings.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/moving_avg/src/py_moving_average_module.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/running_data/src/py_moving_average_bindings.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/running_data/src/py_moving_average_module.cpp
 )
 
 target_include_directories(py_moving_average
     PRIVATE
         ${Python3_INCLUDE_DIRS}
         ${pybind11_INCLUDE_DIRS}
-        ${MOVING_AVG_LIB_DIR}
+        ${RUNNING_DATA_LIB_DIR}
         ${FILTERS_LIB_DIR}
         ${TOOLS_DIR}
         ${FPM_INCLUDE_DIR}
@@ -167,7 +204,7 @@ target_include_directories(py_moving_average
 
 target_link_libraries(py_moving_average
     PRIVATE
-        moving_avg
+        running_data
         filters
         tools
         Python3::Python
@@ -178,19 +215,19 @@ target_link_libraries(py_moving_average
 set_target_properties(py_moving_average PROPERTIES
     PREFIX ""
     SUFFIX "${Python3_MODULE_EXTENSION}"
-    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/moving_avg
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/running_data
 )
 
 # =============================================================================
 # Install Targets
 # =============================================================================
 
-install(TARGETS py_filter py_moving_average
+install(TARGETS py_filter py_moving_average py_median_filter
     LIBRARY DESTINATION lib
 )
 
 install(DIRECTORY ${FILTERS_LIB_DIR}/ DESTINATION include/filters)
-install(DIRECTORY ${MOVING_AVG_LIB_DIR}/ DESTINATION include/moving_avg)
+install(DIRECTORY ${RUNNING_DATA_LIB_DIR}/ DESTINATION include/running_data)
 install(DIRECTORY ${TOOLS_DIR}/ DESTINATION include/tools)
 
 # =============================================================================

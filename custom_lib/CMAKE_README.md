@@ -1,6 +1,6 @@
-# CMake Build System for naweRobotics Filters
+# CMake Build System for naweRobotics Signal Processing Libraries
 
-This directory contains a modern CMake-based build system for the naweRobotics filter library.
+This directory contains a modern CMake-based build system for the naweRobotics signal processing libraries, including filters and running_data components.
 
 ## Prerequisites
 
@@ -48,13 +48,14 @@ cmake --build . --config Release
 ## Build Targets
 
 ### Libraries
-- `tools` - RingBuffer implementation
+- `tools` - RingBuffer, FixedHeap, and FixedPriorityQueue implementations
 - `filters` - Filter classes (BaseFilter, BaseIIRFilter, FixedPointLowPassFilter, FloatLowPassFilter)
-- `moving_avg` - Moving average classes (FixedMovingAverage, TimeDurationMovingAverage)
+- `running_data` - Running data classes (FixedMovingAverage, TimeDurationMovingAverage, MedianFilter)
 
 ### Python Modules
-- `py_filter` - Python bindings for filter library
-- `py_moving_average` - Python bindings for moving average library
+- `py_filter` - Python bindings for filter library (low-pass filters)
+- `py_moving_average` - Python bindings for running data library (moving averages)
+- `py_median_filter` - Python bindings for median filter (demonstrates extensibility)
 
 ## Using FPM
 
@@ -78,26 +79,41 @@ If you have FPM installed system-wide:
 ```
 custom_lib/
 ├── CMakeLists.txt              # Main CMake configuration
+├── CMAKE_README.md            # This document
+├── examples.py                # Common examples for all libraries
+├── README_python.md           # Python bindings documentation
+├── EXTENSIBILITY.md          # Extensibility demonstration documentation
 ├── tools/
-│   └── ring_buffer.hpp         # Ring buffer implementation
+│   ├── ring_buffer.hpp         # Ring buffer implementation
+│   ├── fixed_heap.hpp          # Fixed-size heap implementation
+│   └── fixed_priority_queue.hpp # Fixed-size priority queue
 ├── filters/
 │   ├── lib/
 │   │   ├── base_filter.hpp
 │   │   ├── base_iir_filter.hpp
 │   │   ├── float_low_pass_filter.hpp
 │   │   └── fixed_point_low_pass_filter.hpp
-│   └── src/
-│       ├── filter_bindings.cpp
-│       └── py_filter_module.cpp
-├── moving_avg/
+│   ├── src/
+│   │   ├── filter_bindings.cpp
+│   │   └── py_filter_module.cpp
+│   └── README.md              # Filters library documentation
+├── running_data/
 │   ├── lib/
 │   │   ├── fixed_moving_average.hpp
-│   │   └── time_duration_moving_average.hpp
-│   └── src/
-│       ├── py_moving_average_bindings.cpp
-│       └── py_moving_average_module.cpp
+│   │   ├── time_duration_moving_average.hpp
+│   │   └── median_filter.hpp
+│   ├── src/
+│   │   ├── py_moving_average_bindings.cpp
+│   │   ├── py_moving_average_module.cpp
+│   │   ├── median_filter_bindings.cpp
+│   │   └── py_median_filter_module.cpp
+│   └── README.md              # Running data library documentation
 └── test/
-    └── CMakeLists.txt
+    ├── CMakeLists.txt
+    ├── filters/
+    │   └── test_*              # Filter test files
+    └── running_data/
+        └── test_*              # Running data test files
 ```
 
 ## Customizing the Build
@@ -114,12 +130,14 @@ FetchContent_Declare(
 )
 ```
 
-### Add New Filters
+### Add New Filters or Moving Averages
 
-1. Add header file to `filters/lib/`
-2. Add source file to `filters/src/` if needed
-3. Update the `filters` library target in CMakeLists.txt
+1. Add header file to `filters/lib/` or `running_data/lib/`
+2. Add source file to `filters/src/` or `running_data/src/` if needed
+3. Update the corresponding library target in CMakeLists.txt
 4. Add bindings if exposing to Python
+
+**Note**: The architecture supports extensibility without modifying existing files. See `EXTENSIBILITY.md` for the median filter demonstration.
 
 ### Using as a Dependency
 
@@ -128,12 +146,41 @@ To use this library in another CMake project:
 ```cmake
 # Option 1: Add as subdirectory
 add_subdirectory(path/to/custom_lib)
-target_link_libraries(your_target PRIVATE filters moving_avg)
+target_link_libraries(your_target PRIVATE filters running_data tools)
 
 # Option 2: Install and find
 find_package(naweRoboticsFilters REQUIRED)
-target_link_libraries(your_target PRIVATE naweRobotics::filters)
+target_link_libraries(your_target PRIVATE 
+    naweRobotics::filters 
+    naweRobotics::running_data 
+    naweRobotics::tools
+)
 ```
+
+## Examples
+
+A comprehensive examples file is provided that demonstrates all library functionality:
+
+```bash
+# Run all examples
+cd custom_lib
+python examples.py
+
+# Run specific demos
+python examples.py Filters          # Only filters library demos
+python examples.py Running          # Only running_data library demos
+python examples.py Extensibility    # Extensibility demonstration
+
+# Get help
+python examples.py --help
+```
+
+The examples cover:
+- Fixed-point and floating-point filters with various Q-formats
+- Moving average filters (fixed and time-duration based)
+- Noise filtering applications
+- Integration between libraries
+- Extensibility patterns
 
 ## Troubleshooting
 
