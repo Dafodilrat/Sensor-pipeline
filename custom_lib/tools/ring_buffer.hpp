@@ -13,19 +13,33 @@ class RingBuffer {
         std::array<T, Capacity> buffer_{};
         size_t head_ = 0;
         size_t count_ = 0;
+        size_t size_limit_ = Capacity;
 
     public:
+        // Constructor with optional runtime size limit
+        explicit RingBuffer(size_t size_limit = Capacity) : size_limit_(size_limit) {
+            if (size_limit == 0) {
+                throw std::invalid_argument("RingBuffer: size limit must be positive");
+            }
+            if (size_limit > Capacity) {
+                throw std::invalid_argument("RingBuffer: size limit cannot exceed Capacity");
+            }
+        }
+
         T push(const T& value) {
             T removed = value;
             
             if (full()) {
                 removed = buffer_[head_];
+                // Remove oldest element
+                head_ = (head_ + 1) % Capacity;
+                count_--;
             }
             
             buffer_[head_] = value;
             head_ = (head_ + 1) % Capacity;
             
-            if (!full()) {
+            if (count_ < size_limit_) {
                 count_++;
             }
             
@@ -69,7 +83,19 @@ class RingBuffer {
 
         size_t size() const { return count_; }
         size_t capacity() const { return Capacity; }
+        size_t size_limit() const { return size_limit_; }
+        size_t head() const { return head_; }
         bool empty() const { return count_ == 0; }
-        bool full() const { return count_ == Capacity; }
+        bool full() const { return count_ >= size_limit_; }
         void clear() { head_ = 0; count_ = 0; }
+        
+        // Copy elements to destination array (in insertion order, oldest to newest)
+        template<typename DestT>
+        void copyTo(DestT (&dest)[Capacity]) const {
+            if (empty()) return;
+            size_t tail = (head_ + Capacity - count_) % Capacity;
+            for (size_t i = 0; i < count_; ++i) {
+                dest[i] = buffer_[(tail + i) % Capacity];
+            }
+        }
 };
