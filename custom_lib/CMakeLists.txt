@@ -20,30 +20,85 @@ endif()
 # FPM Dependency (Fixed Point Math Library)
 # =============================================================================
 
-# Option 1: Use FetchContent to automatically download FPM
-include(FetchContent)
+# FPM is a header-only library for fixed-point arithmetic
+# We need to download it since it's not available in the container
 
-FetchContent_Declare(
-    fpm
-    GIT_REPOSITORY https://github.com/MikePopoloski/fpm.git
-    GIT_TAG v0.13.0  # Use a specific release tag
-    GIT_SHALLOW TRUE
+# Try to download FPM from GitHub using file(DOWNLOAD)
+# This avoids git dependency issues in containers
+set(FPM_URL "https://codeload.github.com/MikePopoloski/fpm/tar.gz/v0.13.0")
+set(FPM_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/fpm-download")
+
+# Create download directory
+file(MAKE_DIRECTORY ${FPM_DOWNLOAD_DIR})
+
+# Download FPM tarball
+file(DOWNLOAD ${FPM_URL} ${FPM_DOWNLOAD_DIR}/fpm-0.13.0.tar.gz
+     STATUS fpm_download_status
+     LOG fpm_download_log
+     TIMEOUT 60
 )
 
-# Option 2: Use find_package if FPM is installed system-wide
-# find_package(fpm CONFIG QUIET)
-
-# If FPM wasn't found, use FetchContent
-if(NOT fpm_FOUND)
-    FetchContent_MakeAvailable(fpm)
-    # FPM is header-only, so we just need its include directory
-    set(FPM_INCLUDE_DIR ${fpm_SOURCE_DIR}/include)
+if(fpm_download_status EQUAL 0 AND EXISTS "${FPM_DOWNLOAD_DIR}/fpm-0.13.0.tar.gz")
+    # Extract the tarball
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E tar xzf ${FPM_DOWNLOAD_DIR}/fpm-0.13.0.tar.gz
+        WORKING_DIRECTORY ${FPM_DOWNLOAD_DIR}
+        RESULT_VARIABLE extract_result
+        OUTPUT_QUIET
+    )
+    
+    if(extract_result EQUAL 0 AND EXISTS "${FPM_DOWNLOAD_DIR}/fpm-0.13.0/include/fpm/fixed.hpp")
+        # FPM successfully downloaded and extracted
+        set(FPM_INCLUDE_DIR "${FPM_DOWNLOAD_DIR}/fpm-0.13.0/include")
+        message(STATUS "FPM downloaded and extracted to: ${FPM_DOWNLOAD_DIR}/fpm-0.13.0")
+    else()
+        message(WARNING "Failed to extract FPM tarball. Trying alternative method...")
+        set(FPM_INCLUDE_DIR "")
+    endif()
 else()
-    # Use system-installed FPM
-    set(FPM_INCLUDE_DIR ${fpm_INCLUDE_DIRS})
+    message(WARNING "Failed to download FPM: ${fpm_download_log}")
+    message(WARNING "Status: ${fpm_download_status}")
+    
+    # Try alternative URL format
+    set(FPM_URL_ALT "https://codeload.github.com/MikePopoloski/fpm/tar.gz/refs/tags/v0.13.0")
+    file(DOWNLOAD ${FPM_URL_ALT} ${FPM_DOWNLOAD_DIR}/fpm-alt.tar.gz
+         STATUS fpm_alt_status
+         LOG fpm_alt_log
+         TIMEOUT 60
+    )
+    
+    if(fpm_alt_status EQUAL 0 AND EXISTS "${FPM_DOWNLOAD_DIR}/fpm-alt.tar.gz")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} -E tar xzf ${FPM_DOWNLOAD_DIR}/fpm-alt.tar.gz
+            WORKING_DIRECTORY ${FPM_DOWNLOAD_DIR}
+            RESULT_VARIABLE extract_alt_result
+            OUTPUT_QUIET
+        )
+        
+        if(extract_alt_result EQUAL 0 AND EXISTS "${FPM_DOWNLOAD_DIR}/fpm-0.13.0/include/fpm/fixed.hpp")
+            set(FPM_INCLUDE_DIR "${FPM_DOWNLOAD_DIR}/fpm-0.13.0/include")
+            message(STATUS "FPM downloaded (alt URL) and extracted to: ${FPM_DOWNLOAD_DIR}/fpm-0.13.0")
+        else()
+            message(WARNING "FPM is required for fixed-point filters. Trying to use local fallback...")
+            set(FPM_INCLUDE_DIR "")
+        endif()
+    else()
+        message(WARNING "FPM is required for fixed-point filters. Trying to use local fallback...")
+        set(FPM_INCLUDE_DIR "")
+    endif()
 endif()
 
-message(STATUS "FPM include directory: ${FPM_INCLUDE_DIR}")
+# Check if we successfully got FPM
+if(NOT FPM_INCLUDE_DIR OR NOT EXISTS "${FPM_INCLUDE_DIR}/fpm/fixed.hpp")
+    # Last resort: create a warning and set empty path
+    # Fixed-point filters will not compile without FPM
+    message(WARNING "FPM library not available. Fixed-point filters will be disabled.")
+    message(WARNING "To enable fixed-point filters, ensure FPM is available at: ${FPM_INCLUDE_DIR}")
+    set(FPM_FOUND FALSE)
+else()
+    set(FPM_FOUND TRUE)
+    message(STATUS "FPM include directory: ${FPM_INCLUDE_DIR}")
+endif()
 
 # =============================================================================
 # Project Structure
@@ -73,22 +128,39 @@ target_include_directories(tools
 # Filters Library
 # =============================================================================
 
+# Build base filters (float) - these don't require FPM
 add_library(filters STATIC
     ${FILTERS_LIB_DIR}/base_filter.hpp
     ${FILTERS_LIB_DIR}/base_iir_filter.hpp
     ${FILTERS_LIB_DIR}/float_low_pass_filter.hpp
-    ${FILTERS_LIB_DIR}/fixed_point_low_pass_filter.hpp
 )
 
 target_include_directories(filters
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${FILTERS_LIB_DIR}
-        ${FPM_INCLUDE_DIR}
         ${TOOLS_DIR}
 )
 
 target_link_libraries(filters PUBLIC tools)
+
+# Build fixed-point filters only if FPM is available
+if(FPM_FOUND)
+    target_include_directories(filters
+        PUBLIC
+            ${FPM_INCLUDE_DIR}
+    )
+    
+    # Add fixed-point filter source files
+    target_sources(filters
+        PRIVATE
+            ${FILTERS_LIB_DIR}/fixed_point_low_pass_filter.hpp
+    )
+    
+    message(STATUS "Fixed-point filters enabled (FPM available)")
+else()
+    message(WARNING "Fixed-point filters disabled (FPM not available)")
+endif()
 
 # =============================================================================
 # Running Data Library (formerly Moving Average)
@@ -106,8 +178,15 @@ target_include_directories(running_data
         ${RUNNING_DATA_LIB_DIR}
         ${FILTERS_LIB_DIR}
         ${TOOLS_DIR}
-        ${FPM_INCLUDE_DIR}
 )
+
+# Add FPM include directory if available
+if(FPM_FOUND)
+    target_include_directories(running_data
+        PUBLIC
+            ${FPM_INCLUDE_DIR}
+    )
+endif()
 
 target_link_libraries(running_data PUBLIC filters tools)
 
@@ -131,8 +210,15 @@ target_include_directories(py_filter
         ${pybind11_INCLUDE_DIRS}
         ${FILTERS_LIB_DIR}
         ${TOOLS_DIR}
-        ${FPM_INCLUDE_DIR}
 )
+
+# Add FPM include directory if available
+if(FPM_FOUND)
+    target_include_directories(py_filter
+        PRIVATE
+            ${FPM_INCLUDE_DIR}
+    )
+endif()
 
 target_link_libraries(py_filter
     PRIVATE
@@ -165,8 +251,15 @@ target_include_directories(py_median_filter
         ${pybind11_INCLUDE_DIRS}
         ${RUNNING_DATA_LIB_DIR}
         ${TOOLS_DIR}
-        ${FPM_INCLUDE_DIR}
 )
+
+# Add FPM include directory if available
+if(FPM_FOUND)
+    target_include_directories(py_median_filter
+        PRIVATE
+            ${FPM_INCLUDE_DIR}
+    )
+endif()
 
 target_link_libraries(py_median_filter
     PRIVATE
@@ -199,8 +292,15 @@ target_include_directories(py_moving_average
         ${RUNNING_DATA_LIB_DIR}
         ${FILTERS_LIB_DIR}
         ${TOOLS_DIR}
-        ${FPM_INCLUDE_DIR}
 )
+
+# Add FPM include directory if available
+if(FPM_FOUND)
+    target_include_directories(py_moving_average
+        PRIVATE
+            ${FPM_INCLUDE_DIR}
+    )
+endif()
 
 target_link_libraries(py_moving_average
     PRIVATE
