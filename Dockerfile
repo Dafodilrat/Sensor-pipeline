@@ -20,26 +20,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-dev \
     python3-pip \
     python3-venv \
-    curl \
-    tar \
     && rm -rf /var/lib/apt/lists/*
-
-# Install FPM (Fixed Point Math Library) - HEADERS ONLY
-# Download and install FPM headers for fixed-point arithmetic support
-RUN mkdir -p /tmp/fpm_install \
-    && cd /tmp/fpm_install \
-    && curl -sL https://codeload.github.com/MikePopoloski/fpm/tar.gz/v0.13.0 -o fpm.tar.gz \
-    && tar xzf fpm.tar.gz \
-    && mkdir -p /usr/local/include \
-    && cp -r fpm-0.13.0/include/fpm /usr/local/include/ \
-    && rm -rf /tmp/fpm_install
 
 # Install Python dependencies
 RUN pip install --no-cache-dir \
     pip \
     setuptools \
     wheel \
-    pybind11>=2.10.0 \
     pytest
 
 # Copy custom_lib source
@@ -71,7 +58,6 @@ FROM ros:jazzy-ros-base
 ENV ROS_DOMAIN_ID=0
 ENV ROS_LOCALHOST_ONLY=0
 ENV PYTHONUNBUFFERED=1
-ENV FPM_ROOT=/usr/local
 
 # Create workspace directory
 WORKDIR /workspace
@@ -83,13 +69,13 @@ COPY --from=builder /tmp/installed_libs /usr/local
 RUN apt-get update && apt-get install -y \
     ros-jazzy-sensor-msgs \
     python3-colcon-common-extensions \
-    python3-rosdep2 \
+    python3-rosdep \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies for ROS 2
-RUN pip install --no-cache-dir \
-    setuptools \
-    pybind11>=2.10.0
+RUN pip install --no-cache-dir --break-system-packages \
+    setuptools
 
 # Copy the custom_lib source (for development)
 COPY custom_lib/ ./custom_lib/
@@ -101,39 +87,4 @@ RUN echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc && \
     echo "if [ -f /workspace/colcon_ws/install/setup.bash ]; then source /workspace/colcon_ws/install/setup.bash; fi" >> ~/.bashrc && \
     echo "export PYTHONPATH=/usr/local/lib/python3.10/site-packages:/usr/local/lib:$PYTHONPATH" >> ~/.bashrc
 
-# ========================================================================
-# Alternative: Build from source in final image
-# (Uncomment if you want to build fresh instead of copying from builder)
-# ========================================================================
-#
-# RUN apt-get update && apt-get install -y --no-install-recommends \
-#     build-essential \
-#     cmake \
-#     git \
-#     python3-dev \
-#     python3-pip \
-#     curl \
-#     tar \
-#     && rm -rf /var/lib/apt/lists/*
-#
-# # Install FPM headers
-# RUN mkdir -p /tmp/fpm_install \
-#     && cd /tmp/fpm_install \
-#     && curl -sL https://codeload.github.com/MikePopoloski/fpm/tar.gz/v0.13.0 -o fpm.tar.gz \
-#     && tar xzf fpm.tar.gz \
-#     && mkdir -p /usr/local/include \
-#     && cp -r fpm-0.13.0/include/fpm /usr/local/include/ \
-#     && rm -rf /tmp/fpm_install
-#
-# RUN pip install --no-cache-dir pybind11>=2.10.0
-#
-# WORKDIR /workspace/custom_lib
-# RUN mkdir -p build && cd build && \
-#     cmake .. -DCMAKE_BUILD_TYPE=Release && \
-#     cmake --build . -j$(nproc) && \
-#     cmake --install . --prefix /usr/local
-
-# ========================================================================
-# Default command
-# ========================================================================
 CMD ["bash"]
