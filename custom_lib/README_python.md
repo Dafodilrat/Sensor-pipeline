@@ -9,11 +9,8 @@ This document provides detailed documentation for the Python bindings of the C++
 ```
 custom_lib/filters/
 ├── lib/                         # C++ header files
-│   ├── base_filter.hpp
-│   ├── base_iir_filter.hpp
 │   ├── fixed_point_low_pass_filter.hpp
-│   ├── float_low_pass_filter.hpp
-│   └── low_pass_filter.hpp
+│   └── low_pass_iir_filter.hpp
 ├── src/                        # Python bindings source
 │   ├── filter_bindings.cpp     # Individual filter bindings
 │   └── py_filter_module.cpp    # Main module definition
@@ -49,16 +46,18 @@ python setup.py build_ext --inplace
 import py_filter
 
 # Create a fixed-point low-pass filter with 10Hz cutoff (Q16.16)
-filter = py_filter.FixedPointLowPassFilter_16_16(cutoff_freq_hz=10.0)
+# IMPORTANT: cutoff_freq_times_100 is an INTEGER representing Hz * 100
+# For 10.00 Hz, use 1000. No floating-point values allowed - this is pure fixed-point.
+filter = py_filter.FixedPointLowPassFilter_16_16(1000)  # 10.00 Hz cutoff
 
 # Update with integer values
 result = filter.update(100)  # Returns 100
 result = filter.update(200)  # Returns filtered value between 100-200
 
 # Access properties
-print(f"Cutoff: {filter.cutoff_frequency} Hz")
 print(f"Q-format: Q{filter.fractional_bits}.{filter.fractional_bits}")
 print(f"Q scale: {filter.q_scale}")
+print(f"Timeout: {filter.timeout} ns")
 ```
 
 ### Available Classes
@@ -69,32 +68,35 @@ print(f"Q scale: {filter.q_scale}")
 | `FixedPointLowPassFilter_16_16` | Q16.16 | 16 bits | 16 bits | Balanced precision (default) |
 | `FixedPointLowPassFilter_8_24` | Q8.24 | 8 bits | 24 bits | Higher precision, lower range |
 | `FixedPointLowPassFilter_2_30` | Q2.30 | 2 bits | 30 bits | Maximum precision |
-| `FloatLowPassFilter_Double` | - | - | - | Double precision float |
-| `FloatLowPassFilter_Float` | - | - | - | Single precision float |
+| `LowPassIIRFilter_Double` | - | - | - | Double precision float |
+| `LowPassIIRFilter_Float` | - | - | - | Single precision float |
 
 **Note:** All fixed-point filters use `int32_t` storage with `int64_t` calculations due to fpm library constraints.
 
-### Float Filter Example
+### IIR Float Filter Example
 
 ```python
-float_filter = py_filter.FloatLowPassFilter_Double(cutoff_freq_hz=5.0)
+float_filter = py_filter.LowPassIIRFilter_Double(cutoff_freq=5.0)
 result = float_filter.update(100.5)  # Returns 100.5
 ```
 
 ## Different Q-Format Precisions
 
 ```python
+# IMPORTANT: All cutoff_freq_times_100 parameters are INTEGERS (Hz * 100)
+# No floating-point values allowed - this is pure fixed-point.
+
 # Large range, lower precision
-filter_q24_8 = py_filter.FixedPointLowPassFilter_24_8(cutoff_freq_hz=10.0)
+filter_q24_8 = py_filter.FixedPointLowPassFilter_24_8(1000)  # 10.00 Hz
 
 # Balanced precision (default)
-filter_q16_16 = py_filter.FixedPointLowPassFilter_16_16(cutoff_freq_hz=10.0)
+filter_q16_16 = py_filter.FixedPointLowPassFilter_16_16(1000)  # 10.00 Hz
 
 # High precision, smaller range
-filter_q8_24 = py_filter.FixedPointLowPassFilter_8_24(cutoff_freq_hz=10.0)
+filter_q8_24 = py_filter.FixedPointLowPassFilter_8_24(1000)  # 10.00 Hz
 
 # Maximum precision, smallest range
-filter_q2_30 = py_filter.FixedPointLowPassFilter_2_30(cutoff_freq_hz=10.0)
+filter_q2_30 = py_filter.FixedPointLowPassFilter_2_30(1000)  # 10.00 Hz
 ```
 
 ## Running Examples
@@ -116,47 +118,52 @@ The `example_usage.py` file has been consolidated into the common `examples.py` 
 
 ```python
 FixedPointLowPassFilter_24_8(
-    cutoff_freq_hz: float,      # Cutoff frequency in Hz (required)
-    fractional_bits: int = 8,  # Q-format fractional bits
-    timeout_seconds: float = 10.0  # Timeout for reset on large dt gaps
+    cutoff_freq_times_100: int,      # Cutoff frequency * 100 as INTEGER (required)
+                                   # e.g., 1000 = 10.00 Hz, 500 = 5.00 Hz
+                                   # NO FLOATING-POINT ALLOWED - pure fixed-point
+    fractional_bits: int = 8,     # Q-format fractional bits
+    timeout_ns: int = 0           # Timeout in nanoseconds (0 = no timeout)
 )
 ```
 
 **Note:** The fractional_bits parameter is optional and defaults to the value in the class name, but can be overridden if needed.
+
+**IMPORTANT:** The `cutoff_freq_times_100` parameter MUST be an integer. This is a pure fixed-point filter that uses NO floating-point operations. To specify 10.00 Hz, use 1000 (10.00 * 100).
 
 ## Methods and Properties
 
 ### FixedPointLowPassFilter Classes
 
 - `update(new_value: int) -> int` - Add a new value and return filtered result
-- `update_with_timestamp(new_value: int, timestamp, is_clamped: bool = None) -> int` - Update with explicit timestamp
 - `reset()` - Reset filter state
-- `set_cutoff_frequency(cutoff_freq_hz: float)` - Update cutoff frequency
-- `set_timeout(timeout_seconds: float)` - Update timeout
-- `get_cutoff_frequency() -> float` - Get current cutoff frequency
-- `get_timeout() -> float` - Get current timeout
-- `get_current_output_double() -> float` - Get current output as double
+- `had_clamp() -> bool` - Check if clamping occurred on last update
+- `set_cutoff(cutoff_freq_times_100: int)` - Update cutoff frequency (integer * 100)
+- `set_timeout(timeout_ns: int)` - Update timeout in nanoseconds
+- `get_timeout() -> int` - Get current timeout in nanoseconds
 - `get_fractional_bits() -> int` - Get Q-format fractional bits
 - `get_q_scale() -> int` - Get Q-format scale factor (2^fractional_bits)
+- `get_rc_raw() -> int` - Get RC time constant in raw Q16.16 format
+- `has_timeout() -> bool` - Check if timeout is enabled
 
 **Properties:**
-- `cutoff_frequency: float` (read-only)
-- `timeout: float` (read-only)
 - `fractional_bits: int` (read-only)
 - `q_scale: int` (read-only)
+- `timeout: int` (read-only)
 
-### FloatLowPassFilter Classes
+### LowPassIIRFilter Classes
 
 - `update(new_value: float) -> float` - Add a new value and return filtered result
 - `reset()` - Reset filter state
-- `set_cutoff_frequency(cutoff_freq_hz: float)` - Update cutoff frequency
+- `set_cutoff(cutoff_freq: float)` - Update cutoff frequency
+- `get_cutoff() -> float` - Get current cutoff frequency
 - `set_timeout(timeout_seconds: float)` - Update timeout
-- `get_cutoff_frequency() -> float` - Get current cutoff frequency
 - `get_timeout() -> float` - Get current timeout
-- `get_current_output() -> float` - Get current output
+- `get_last_dt() -> float` - Get last time delta
+- `get_alpha() -> float` - Get current alpha value
+- `has_timeout() -> bool` - Check if timeout is enabled
 
 **Properties:**
-- `cutoff_frequency: float` (read-only)
+- `cutoff: float` (read-only, via get_cutoff())
 - `timeout: float` (read-only)
 
 ## Mathematical Background
@@ -205,7 +212,8 @@ import py_filter
 import random
 
 # Create filter for noisy sensor data
-filter = py_filter.FixedPointLowPassFilter_16_16(cutoff_freq_hz=20.0)
+# cutoff_freq_times_100 = 2000 = 20.00 Hz
+filter = py_filter.FixedPointLowPassFilter_16_16(2000)
 
 # Simulate noisy sensor readings
 random.seed(42)
@@ -228,8 +236,9 @@ For backward compatibility, the old name `FixedPointLowPassFilter32` is still av
 
 ```python
 # These are equivalent
-filter1 = py_filter.FixedPointLowPassFilter32(cutoff_freq_hz=10.0)
-filter2 = py_filter.FixedPointLowPassFilter_16_16(cutoff_freq_hz=10.0)
+# cutoff_freq_times_100 = 1000 = 10.00 Hz
+filter1 = py_filter.FixedPointLowPassFilter32(1000)
+filter2 = py_filter.FixedPointLowPassFilter_16_16(1000)
 ```
 
 ## Troubleshooting

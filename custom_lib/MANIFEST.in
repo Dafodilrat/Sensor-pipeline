@@ -1,0 +1,9 @@
+include README*.md
+include LICENSE
+include *.txt
+include *.hpp
+recursive-include filters/lib *.hpp
+recursive-include filters/src *.cpp
+recursive-include running_data/lib *.hpp
+recursive-include running_data/src *.cpp
+recursive-include tools *.hpp

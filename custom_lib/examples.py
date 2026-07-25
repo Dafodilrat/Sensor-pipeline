@@ -33,14 +33,15 @@ def demo_filters_basic_fixed_point():
         return
     
     # Create a fixed-point low-pass filter with 10Hz cutoff (Q16.16)
-    filter_q16_16 = py_filter.FixedPointLowPassFilter_16_16(cutoff_freq_hz=10.0)
+    # Note: cutoff_freq_times_100 is an integer: 1000 = 10.00 Hz
+    filter_q16_16 = py_filter.FixedPointLowPassFilter_16_16(1000, 16, 1000000000)  # 10.00 Hz, 1s timeout in ns
     
     print(f"\nFilter configuration:")
     print(f"  Type: FixedPointLowPassFilter_16_16")
-    print(f"  Cutoff frequency: {filter_q16_16.cutoff_frequency} Hz")
+    print(f"  Cutoff frequency: 10.00 Hz (1000 * 100)")
     print(f"  Q-format: Q{filter_q16_16.fractional_bits}.{filter_q16_16.fractional_bits}")
     print(f"  Q scale factor: {filter_q16_16.q_scale}")
-    print(f"  Timeout: {filter_q16_16.timeout} seconds")
+    print(f"  Timeout: {filter_q16_16.timeout} nanoseconds")
     
     # Simulate some input values
     input_values = [0, 100, 200, 300, 200, 100, 0, -100, -200, -100, 0]
@@ -66,15 +67,16 @@ def demo_filters_different_precisions():
         print(f"Failed to import py_filter: {e}")
         return
     
-    cutoff = 5.0
+    cutoff_times_100 = 500  # 5.00 Hz
     test_values = [1000, 500, 1500, 1000]
+    timeout_ns = 10000000000  # 10.0 seconds
     
     # Create filters with different Q-formats
     filters = [
-        ("Q24.8", py_filter.FixedPointLowPassFilter_24_8(cutoff, 8, 10.0)),
-        ("Q16.16", py_filter.FixedPointLowPassFilter_16_16(cutoff, 16, 10.0)),
-        ("Q8.24", py_filter.FixedPointLowPassFilter_8_24(cutoff, 24, 10.0)),
-        ("Q2.30", py_filter.FixedPointLowPassFilter_2_30(cutoff, 30, 10.0)),
+        ("Q24.8", py_filter.FixedPointLowPassFilter_24_8(cutoff_times_100, 8, timeout_ns)),
+        ("Q16.16", py_filter.FixedPointLowPassFilter_16_16(cutoff_times_100, 16, timeout_ns)),
+        ("Q8.24", py_filter.FixedPointLowPassFilter_8_24(cutoff_times_100, 24, timeout_ns)),
+        ("Q2.30", py_filter.FixedPointLowPassFilter_2_30(cutoff_times_100, 30, timeout_ns)),
     ]
     
     print("Testing different Q-format precisions with same inputs:")
@@ -103,7 +105,8 @@ def demo_filters_noise_filtering():
         return
     
     # Create filter for noisy sensor data
-    filter_q16_16 = py_filter.FixedPointLowPassFilter_16_16(cutoff_freq_hz=20.0)
+    # cutoff_freq_times_100 = 2000 = 20.00 Hz
+    filter_q16_16 = py_filter.FixedPointLowPassFilter_16_16(2000)
     
     # Simulate noisy sensor readings around 100
     random.seed(42)
@@ -137,7 +140,8 @@ def demo_filters_large_range():
         return
     
     # Create filter with Q24.8 for larger range
-    filter_q24_8 = py_filter.FixedPointLowPassFilter_24_8(cutoff_freq_hz=5.0)
+    # cutoff_freq_times_100 = 500 = 5.00 Hz
+    filter_q24_8 = py_filter.FixedPointLowPassFilter_24_8(500)
     
     print(f"Filter: FixedPointLowPassFilter_24_8")
     print(f"Q-format: Q24.8 (24 integral, 8 fractional bits)")
@@ -167,7 +171,8 @@ def demo_filters_high_precision():
         return
     
     # Create high-precision filter - maximum fractional bits for int32_t
-    filter_q2_30 = py_filter.FixedPointLowPassFilter_2_30(cutoff_freq_hz=2.0, fractional_bits=30)
+    # cutoff_freq_times_100 = 200 = 2.00 Hz
+    filter_q2_30 = py_filter.FixedPointLowPassFilter_2_30(200, 30)
     
     print(f"Filter: FixedPointLowPassFilter_2_30")
     print(f"Q-format: Q2.30 (2 integral, 30 fractional bits)")
@@ -185,9 +190,9 @@ def demo_filters_high_precision():
 
 
 def demo_filters_float():
-    """Demonstrate float low-pass filter from filters library."""
+    """Demonstrate low-pass IIR filter from filters library."""
     print("\n" + "="*70)
-    print("FILTERS LIBRARY: FLOAT LOW-PASS FILTER DEMO")
+    print("FILTERS LIBRARY: LOW-PASS IIR FILTER DEMO")
     print("="*70)
     
     try:
@@ -196,11 +201,11 @@ def demo_filters_float():
         print(f"Failed to import py_filter: {e}")
         return
     
-    # Create float low-pass filters
-    float_filter = py_filter.FloatLowPassFilter_Double(cutoff_freq_hz=10.0)
+    # Create low-pass IIR filters
+    float_filter = py_filter.LowPassIIRFilter_Double(cutoff_freq=10.0)
     
-    print(f"Filter: FloatLowPassFilter_Double")
-    print(f"Cutoff frequency: {float_filter.cutoff_frequency} Hz")
+    print(f"Filter: LowPassIIRFilter_Double")
+    print(f"Cutoff frequency: {float_filter.get_cutoff()} Hz")
     
     # Test with float values
     float_values = [0.0, 1.5, 2.7, 3.2, 2.1, 1.0, 0.0, -1.0, -2.0, -1.5, 0.0]
@@ -365,7 +370,7 @@ def demo_running_data_vs_filters_integration():
     ma = MA_Double(5)
     
     # Create a low-pass filter for further processing
-    lp_filter = py_filter.FloatLowPassFilter_Double(cutoff_freq_hz=5.0)
+    lp_filter = py_filter.LowPassIIRFilter_Double(cutoff_freq=5.0)
     
     print("\nProcessing data through both moving average and low-pass filter:")
     print("Raw    | MA (5)   | LP (5Hz)")

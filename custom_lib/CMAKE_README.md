@@ -49,7 +49,7 @@ cmake --build . --config Release
 
 ### Libraries
 - `tools` - RingBuffer, FixedHeap, and FixedPriorityQueue implementations
-- `filters` - Filter classes (BaseFilter, BaseIIRFilter, FixedPointLowPassFilter, FloatLowPassFilter)
+- `filters` - Filter classes (FixedPointLowPassFilter, LowPassIIRFilter)
 - `running_data` - Running data classes (FixedMovingAverage, TimeDurationMovingAverage, MedianFilter)
 
 ### Python Modules
@@ -89,9 +89,7 @@ custom_lib/
 │   └── fixed_priority_queue.hpp # Fixed-size priority queue
 ├── filters/
 │   ├── lib/
-│   │   ├── base_filter.hpp
-│   │   ├── base_iir_filter.hpp
-│   │   ├── float_low_pass_filter.hpp
+│   │   ├── low_pass_iir_filter.hpp
 │   │   └── fixed_point_low_pass_filter.hpp
 │   ├── src/
 │   │   ├── filter_bindings.cpp
