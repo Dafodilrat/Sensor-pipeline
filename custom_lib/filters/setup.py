@@ -28,10 +28,43 @@ parent_dir = os.path.dirname(here)
 include_dirs = [
     here,  # Current directory for our headers
     os.path.join(here, 'lib'),  # Include filters lib directory
-    os.path.join(parent_dir, 'fpm', 'include'),  # Include fpm library
     os.path.join(parent_dir, 'tools'),  # Include tools directory
     pybind11.get_include(),  # pybind11 include directory
 ]
+
+# Check for fpm installation in order: system-wide, local third_party, local direct
+fpm_include_paths = [
+    '/usr/local/include',  # System-wide install
+    '/usr/include',  # System include
+    os.path.join(parent_dir, 'third_party', 'fpm', 'include'),  # Local third_party
+    os.path.join(parent_dir, 'fpm', 'include'),  # Local direct
+]
+
+fpm_found = False
+for fpm_path in fpm_include_paths:
+    test_path = os.path.join(fpm_path, 'fpm', 'fixed.hpp')
+    if os.path.exists(test_path):
+        include_dirs.append(fpm_path)
+        fpm_found = True
+        print(f"Found fpm at: {fpm_path}")
+        break
+
+if not fpm_found:
+    # Try one more time with the paths directly
+    for fpm_path in fpm_include_paths:
+        if os.path.exists(os.path.join(fpm_path, 'fpm')):
+            include_dirs.append(fpm_path)
+            fpm_found = True
+            print(f"Found fpm directory at: {fpm_path}")
+            break
+
+if not fpm_found:
+    print("WARNING: fpm library not found. Please install fpm or set the correct path.")
+    print("Trying to use default paths...")
+    # Add all possible paths anyway
+    for fpm_path in fpm_include_paths:
+        if fpm_path not in include_dirs:
+            include_dirs.append(fpm_path)
 
 # Define the extension module
 filter_ext = Extension(

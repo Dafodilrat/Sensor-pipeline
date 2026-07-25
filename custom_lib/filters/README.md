@@ -7,11 +7,8 @@ This directory contains the C++ filter implementations with Python bindings usin
 ```
 custom_lib/filters/
 ├── lib/                         # C++ header files
-│   ├── base_filter.hpp
-│   ├── base_iir_filter.hpp
 │   ├── fixed_point_low_pass_filter.hpp
-│   ├── float_low_pass_filter.hpp
-│   └── low_pass_filter.hpp
+│   └── low_pass_iir_filter.hpp
 ├── src/                        # Python bindings source
 │   ├── filter_bindings.cpp     # Individual filter bindings
 │   └── py_filter_module.cpp    # Main module definition
@@ -60,19 +57,21 @@ python setup.py build_ext --inplace
 import py_filter
 
 # Create a fixed-point low-pass filter with 10Hz cutoff (Q16.16)
-filter = py_filter.FixedPointLowPassFilter_16_16(cutoff_freq_hz=10.0)
+# IMPORTANT: cutoff_freq_times_100 is an INTEGER representing Hz * 100
+# For 10.00 Hz, use 1000. No floating-point values allowed - this is pure fixed-point.
+filter = py_filter.FixedPointLowPassFilter_16_16(1000)  # 10.00 Hz cutoff
 
 # Update with integer values
 result = filter.update(100)
 result = filter.update(200)
 ```
 
-### Float Filter
+### IIR Float Filter
 
 ```python
 import py_filter
 
-float_filter = py_filter.FloatLowPassFilter_Double(cutoff_freq_hz=5.0)
+float_filter = py_filter.LowPassIIRFilter_Double(cutoff_freq=5.0)
 result = float_filter.update(100.5)
 ```
 
@@ -84,7 +83,7 @@ result = float_filter.update(100.5)
 | `FixedPointLowPassFilter_16_16` | Q16.16 | Balanced precision (default) |
 | `FixedPointLowPassFilter_8_24` | Q8.24 | Higher precision, lower range |
 | `FixedPointLowPassFilter_2_30` | Q2.30 | Maximum precision |
-| `FloatLowPassFilter_Double` | - | Double precision float |
-| `FloatLowPassFilter_Float` | - | Single precision float |
+| `LowPassIIRFilter_Double` | - | Double precision float |
+| `LowPassIIRFilter_Float` | - | Single precision float |
 
 Note: All fixed-point filters use `int32_t` storage with `int64_t` calculations.
