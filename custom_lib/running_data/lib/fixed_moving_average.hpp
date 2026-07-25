@@ -30,7 +30,7 @@ protected:
 
     double safeUpdateSum(double current, double delta, const char* operation) {
         double test = current + delta;
-        if (std::isfinite(current) && std::isinf(test)) {
+        if (std::isfinite(current) && !std::isfinite(test)) {
             throw std::overflow_error(std::string("FixedMovingAverage: ") + operation);
         }
         return test;
@@ -99,11 +99,9 @@ public:
         }
         last_update_time_ = now;
 
-        // push returns the removed value if buffer was full
         T old_value = buffer_.push(new_value);
 
-        // If old_value is different from new_value, it means buffer was full
-        // and we removed an old value, so subtract it from sum
+        // If buffer was full, we removed an old value, so subtract it from sum
         if (old_value != new_value) {
             sum_ = safeUpdateSum(sum_, -static_cast<double>(old_value),
                                 "overflow detected when removing value");

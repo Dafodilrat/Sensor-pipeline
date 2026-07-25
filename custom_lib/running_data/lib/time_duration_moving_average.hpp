@@ -19,7 +19,7 @@ private:
 
     double safeUpdateSum(double current, double delta, const char* operation) {
         double test = current + delta;
-        if (std::isfinite(current) && std::isinf(test)) {
+        if (std::isfinite(current) && !std::isfinite(test)) {
             throw std::overflow_error(std::string("TimeDurationMovingAverage: ") + operation);
         }
         return test;
@@ -29,15 +29,16 @@ private:
         auto now = std::chrono::steady_clock::now();
         
         while (!timestamp_buffer_.empty()) {
-            auto oldest_time = timestamp_buffer_.back(); // back() is oldest
             
-            if (now - oldest_time >= window_duration_ && !this->buffer_.empty()) {
+            auto oldest_time = timestamp_buffer_.back();
+            
+            if (now - oldest_time >= window_duration_) {
                 // Remove expired value and its timestamp
-                T old_value = this->buffer_.back();
+                // pop() returns the old value that was removed
+                T old_value = this->buffer_.pop();
+                timestamp_buffer_.pop();
                 this->sum_ = safeUpdateSum(this->sum_, -static_cast<double>(old_value),
                                   "overflow detected when removing expired value");
-                this->buffer_.pop();
-                timestamp_buffer_.pop();
             } else {
                 break;
             }
@@ -60,54 +61,27 @@ public:
                 "). Increase MaxSamples template parameter."
             );
         }
-        // Initialize first_update_ flag from parent
-        this->first_update_ = true;
+        // first_update_ is already initialized by parent
     }
 
     T update(T new_value) override {
-        auto now = std::chrono::steady_clock::now();
-
-        // Check for timeout reset (inherited from parent class)
-        // This checks if gap since last update exceeds timeout_seconds_
-        if (this->first_update_) {
-            this->last_update_time_ = now;
-            this->first_update_ = false;
-        } else if (this->timeout_seconds_ > 0.0) {
-            auto dt = std::chrono::duration<double>(now - this->last_update_time_).count();
-            if (dt > this->timeout_seconds_) {
-                reset();
-            }
-        }
-        this->last_update_time_ = now;
-
-        // Push to main buffer - returns old value if buffer was full
-        T old_value = this->buffer_.push(new_value);
-
-        // Push timestamp
-        timestamp_buffer_.push(now);
-        
+        // Remove expired samples based on time window BEFORE calling parent update
         removeExpiredSamples();
-
-        // If main buffer removed an old value, subtract it from sum
-        if (old_value != new_value) {
-            this->sum_ = safeUpdateSum(this->sum_, -static_cast<double>(old_value),
-                                "overflow detected when removing value");
-        }
-
-        // Add new value to sum
-        this->sum_ = safeUpdateSum(this->sum_, static_cast<double>(new_value),
-                        "overflow detected when adding new value");
-
-        // Calculate average
-        double avg = this->sum_ / static_cast<double>(this->buffer_.size());
-        return this->template applyRounding<T>(avg);
+        
+        // Push current timestamp
+        timestamp_buffer_.push(std::chrono::steady_clock::now());
+        
+        // Delegate to parent class to handle the actual value update
+        // Parent handles: timeout check, buffer push, sum maintenance
+        return FixedMovingAverage<T, MaxSamples>::update(new_value);
     }
 
     void reset() override {
-        this->buffer_.clear();
+        // Call parent reset to handle value buffer and sum
+        FixedMovingAverage<T, MaxSamples>::reset();
+        
+        // Clear timestamp buffer
         timestamp_buffer_.clear();
-        this->sum_ = 0.0;
-        this->first_update_ = true;  // Reset timestamp tracking
     }
 
     // Set the window duration

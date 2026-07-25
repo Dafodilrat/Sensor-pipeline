@@ -1,27 +1,29 @@
 #pragma once
 
-#include <cstddef>
 #include <array>
 #include <stdexcept>
 
 // =============================================================================
 // RingBuffer: A generic circular buffer implementation
+// All index types are int (Capacity is still size_t for template parameter)
 // =============================================================================
 template<typename T, size_t Capacity>
 class RingBuffer {
     private:
         std::array<T, Capacity> buffer_{};
-        size_t head_ = 0;
-        size_t count_ = 0;
-        size_t size_limit_ = Capacity;
+        int head_ = -1;         // position of newest element, -1 = empty
+        int tail_ = 0;          // position of oldest element (next pop), always >= 0
+        int count_ = 0;
+        int size_limit_ = static_cast<int>(Capacity);
 
     public:
         // Constructor with optional runtime size limit
-        explicit RingBuffer(size_t size_limit = Capacity) : size_limit_(size_limit) {
-            if (size_limit == 0) {
+        explicit RingBuffer(int size_limit = static_cast<int>(Capacity)) 
+            : size_limit_(size_limit), head_(-1), tail_(0) {
+            if (size_limit <= 0) {
                 throw std::invalid_argument("RingBuffer: size limit must be positive");
             }
-            if (size_limit > Capacity) {
+            if (static_cast<size_t>(size_limit) > Capacity) {
                 throw std::invalid_argument("RingBuffer: size limit cannot exceed Capacity");
             }
         }
@@ -30,18 +32,15 @@ class RingBuffer {
             T removed = value;
             
             if (full()) {
-                removed = buffer_[head_];
-                // Remove oldest element
-                head_ = (head_ + 1) % Capacity;
-                count_--;
+                // Buffer is full, pop the oldest to make room
+                removed = pop();
             }
             
+            // head_ starts at -1, (-1 + 1) % size_limit_ = 0
+            // On first push: head_ becomes 0, tail_ is already 0, no need to set tail_
+            head_ = (head_ + 1) % size_limit_;
             buffer_[head_] = value;
-            head_ = (head_ + 1) % Capacity;
-            
-            if (count_ < size_limit_) {
-                count_++;
-            }
+            count_++;
             
             return removed;
         }
@@ -50,52 +49,60 @@ class RingBuffer {
             if (empty()) {
                 throw std::runtime_error("RingBuffer: cannot pop from empty buffer");
             }
-            T value = buffer_[head_];
-            head_ = (head_ + 1) % Capacity;
+            // Read from tail_ (oldest)
+            T value = buffer_[tail_];
+            tail_ = (tail_ + 1) % size_limit_;
             count_--;
+            
+            // If this was the last element, reset to empty state
+            if (empty()) {
+                clear();
+            }
+            
             return value;
         }
 
-        // Get latest element (most recently added) - front() is latest
+        // Get latest element (most recently added) - front() is newest
         T& front() {
             if (empty()) throw std::runtime_error("RingBuffer: buffer is empty");
-            return buffer_[(head_ + Capacity - 1) % Capacity];
+            // Newest is at head_
+            return buffer_[head_];
         }
 
         // Get oldest element - back() is oldest
         T& back() {
             if (empty()) throw std::runtime_error("RingBuffer: buffer is empty");
-            size_t oldest_index = (head_ + Capacity - count_) % Capacity;
-            return buffer_[oldest_index];
+            // Oldest is at tail_
+            return buffer_[tail_];
         }
 
         // Const versions
         const T& front() const {
             if (empty()) throw std::runtime_error("RingBuffer: buffer is empty");
-            return buffer_[(head_ + Capacity - 1) % Capacity];
+            return buffer_[head_];
         }
 
         const T& back() const {
             if (empty()) throw std::runtime_error("RingBuffer: buffer is empty");
-            size_t oldest_index = (head_ + Capacity - count_) % Capacity;
-            return buffer_[oldest_index];
+            return buffer_[tail_];
         }
 
-        size_t size() const { return count_; }
-        size_t capacity() const { return Capacity; }
-        size_t size_limit() const { return size_limit_; }
-        size_t head() const { return head_; }
+        int size() const { return count_; }
+        int capacity() const { return static_cast<int>(Capacity); }
+        int size_limit() const { return size_limit_; }
+        int head() const { return head_; }
+        int tail() const { return tail_; }
         bool empty() const { return count_ == 0; }
         bool full() const { return count_ >= size_limit_; }
-        void clear() { head_ = 0; count_ = 0; }
+        void clear() { head_ = -1; tail_ = 0; count_ = 0; }
         
         // Copy elements to destination array (in insertion order, oldest to newest)
         template<typename DestT>
         void copyTo(DestT (&dest)[Capacity]) const {
             if (empty()) return;
-            size_t tail = (head_ + Capacity - count_) % Capacity;
-            for (size_t i = 0; i < count_; ++i) {
-                dest[i] = buffer_[(tail + i) % Capacity];
+            // tail_ is oldest, head_ is newest, copy sequentially
+            for (int i = 0; i < count_; ++i) {
+                dest[i] = buffer_[(tail_ + i) % size_limit_];
             }
         }
 };
