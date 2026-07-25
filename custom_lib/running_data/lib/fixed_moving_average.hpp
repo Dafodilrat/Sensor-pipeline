@@ -27,6 +27,7 @@ protected:
     double timeout_seconds_;
     std::chrono::steady_clock::time_point last_update_time_;
     bool first_update_ = true;
+    bool timeout_occurred_ = false;
 
     double safeUpdateSum(double current, double delta, const char* operation) {
         double test = current + delta;
@@ -95,6 +96,9 @@ public:
             // Reset if gap exceeds timeout
             if (dt > timeout_seconds_) {
                 reset();
+                timeout_occurred_ = true;
+            } else {
+                timeout_occurred_ = false;
             }
         }
         last_update_time_ = now;
@@ -120,6 +124,7 @@ public:
         buffer_.clear();
         sum_ = 0.0;
         first_update_ = true;  // Reset first update flag so next update initializes timestamp
+        timeout_occurred_ = false;
     }
 
     size_t currentSize() const {
@@ -152,5 +157,10 @@ public:
     // Check if timeout is enabled
     bool has_timeout() const {
         return timeout_seconds_ > 0.0;
+    }
+
+    // Check if a timeout occurred during the last update
+    bool timeout_occurred() const {
+        return timeout_occurred_;
     }
 };

@@ -6,7 +6,7 @@
 // Include the actual template headers
 #include "../lib/fixed_moving_average.hpp"
 #include "../lib/time_duration_moving_average.hpp"
-#include "../../filters/lib/float_low_pass_filter.hpp"
+#include "../../filters/lib/low_pass_iir_filter.hpp"
 
 namespace py = pybind11;
 
@@ -31,6 +31,7 @@ void bind_FixedMovingAverage(py::module& m, const char* className) {
              py::arg("timeout_seconds"))
         .def("get_timeout", &FixedMovingAverage<T, MaxSamples>::get_timeout)
         .def("has_timeout", &FixedMovingAverage<T, MaxSamples>::has_timeout)
+        .def("timeout_occurred", &FixedMovingAverage<T, MaxSamples>::timeout_occurred)
         .def_property_readonly("size", &FixedMovingAverage<T, MaxSamples>::currentSize)
         .def_property_readonly("max_size", &FixedMovingAverage<T, MaxSamples>::capacity)
         .def_property_readonly("timeout", &FixedMovingAverage<T, MaxSamples>::get_timeout);

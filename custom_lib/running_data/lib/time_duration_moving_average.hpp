@@ -73,16 +73,16 @@ public:
         
         // Delegate to parent class to handle the actual value update
         // Parent handles: timeout check, buffer push, sum maintenance
-        return FixedMovingAverage<T, MaxSamples>::update(new_value);
+        T result = FixedMovingAverage<T, MaxSamples>::update(new_value);
+        
+        // If timeout occurred in parent, also reset our timestamp buffer
+        if (this->timeout_occurred()) {
+            timestamp_buffer_.clear();
+        }
+        
+        return result;
     }
 
-    void reset() override {
-        // Call parent reset to handle value buffer and sum
-        FixedMovingAverage<T, MaxSamples>::reset();
-        
-        // Clear timestamp buffer
-        timestamp_buffer_.clear();
-    }
 
     // Set the window duration
     void setWindowDuration(std::chrono::milliseconds duration) {
