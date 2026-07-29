@@ -17,6 +17,18 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     
+    # Default values from benchmark_params.yaml synthetic_sensor section
+    yaml_defaults = {
+        'seed': '42',
+        'imu_rate': '200.0',
+        'imu_noise_std': '0.05',
+        'imu_drop_rate': '0.0',
+        'imu_jitter_range': '0.0',
+        'encoder_rate': '50.0',
+        'encoder_drop_rate': '0.01',
+        'encoder_jitter_range': '0.15',
+    }
+    
     # Sensor-specific launch arguments - allow overrides from command line
     # Defaults come from benchmark_params.yaml
     launch_args = [
@@ -26,20 +38,28 @@ def generate_launch_description():
         # These parameters can be overridden at launch time
         # Defaults are in benchmark_params.yaml under synthetic_sensor section
         DeclareLaunchArgument('seed',
+                           default_value=yaml_defaults['seed'],
                            description='Random seed for repeatable data generation (default: 42)'),
         DeclareLaunchArgument('imu_rate',
+                           default_value=yaml_defaults['imu_rate'],
                            description='IMU publish rate in Hz (from benchmark_params.yaml)'),
         DeclareLaunchArgument('imu_noise_std',
+                           default_value=yaml_defaults['imu_noise_std'],
                            description='IMU noise standard deviation (from benchmark_params.yaml)'),
         DeclareLaunchArgument('imu_drop_rate',
+                           default_value=yaml_defaults['imu_drop_rate'],
                            description='IMU message drop rate (from benchmark_params.yaml)'),
         DeclareLaunchArgument('imu_jitter_range',
+                           default_value=yaml_defaults['imu_jitter_range'],
                            description='IMU timing jitter as fraction of period (from benchmark_params.yaml)'),
         DeclareLaunchArgument('encoder_rate',
+                           default_value=yaml_defaults['encoder_rate'],
                            description='Encoder publish rate in Hz (from benchmark_params.yaml)'),
         DeclareLaunchArgument('encoder_drop_rate',
+                           default_value=yaml_defaults['encoder_drop_rate'],
                            description='Encoder message drop rate (from benchmark_params.yaml)'),
         DeclareLaunchArgument('encoder_jitter_range',
+                           default_value=yaml_defaults['encoder_jitter_range'],
                            description='Encoder timing jitter as fraction of period (from benchmark_params.yaml)'),
     ]
     

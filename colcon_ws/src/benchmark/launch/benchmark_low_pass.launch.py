@@ -29,7 +29,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare, GetPackageShare
+from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
@@ -39,16 +39,22 @@ def generate_launch_description():
     # Sensor arguments are handled by the included base_sensor_launch.py
     # ========================================================================
     
+    # Default parameter values from benchmark_params.yaml
+    # These will be used if not overridden via command line
+    yaml_defaults = {
+        'lp_cutoff_hz': '10.0',
+        'fixed_point_bits': '16',
+        'timeout_seconds': '5.0',
+        'test_duration': '30.0',
+        'warmup_duration': '2.0',
+        'max_acceptable_latency_us': '1000',
+        'stats_interval': '1.0',
+        'imu_rate': '200.0',
+        'encoder_rate': '50.0',
+    }
+    
     launch_args = [
-        # ===== LOW-PASS FILTER CONFIGURATION (from lp_node.ros__parameters in YAML) =====
-        DeclareLaunchArgument('lp_cutoff_hz',
-                           description='Low-pass filter cutoff frequency in Hz (from lp_node.ros__parameters)'),
-        DeclareLaunchArgument('fixed_point_bits',
-                           description='Number of bits for fixed-point arithmetic (from lp_node.ros__parameters)'),
-        DeclareLaunchArgument('timeout_seconds',
-                           description='Filter reset timeout (from lp_node.ros__parameters)'),
-        
-        # ===== BENCHMARK CONFIGURATION (from benchmark_node.ros__parameters in YAML) =====
+        # Path to the combined benchmark config file (contains all parameters)
         DeclareLaunchArgument('benchmark_config',
                              default_value=PathJoinSubstitution([
                                  FindPackageShare('benchmark'),
@@ -57,21 +63,35 @@ def generate_launch_description():
                              ]),
                              description='Path to combined benchmark config file'),
         
+        # Parameters that can be overridden via command line
+        # Defaults match values in benchmark_params.yaml
+        DeclareLaunchArgument('lp_cutoff_hz',
+                           default_value=yaml_defaults['lp_cutoff_hz'],
+                           description='Override lp_node.lp_cutoff_hz from config'),
+        DeclareLaunchArgument('fixed_point_bits', 
+                           default_value=yaml_defaults['fixed_point_bits'],
+                           description='Override lp_node.fixed_point_bits from config'),
+        DeclareLaunchArgument('timeout_seconds',
+                           default_value=yaml_defaults['timeout_seconds'],
+                           description='Override lp_node.timeout_seconds from config'),
         DeclareLaunchArgument('test_duration',
-                           description='Benchmark test duration in seconds'),
+                           default_value=yaml_defaults['test_duration'],
+                           description='Override benchmark.test_duration from config'),
         DeclareLaunchArgument('warmup_duration',
-                           description='Warmup period before measurements start'),
+                           default_value=yaml_defaults['warmup_duration'],
+                           description='Override benchmark.warmup_duration from config'),
         DeclareLaunchArgument('max_acceptable_latency_us',
-                           description='Warning threshold for processing latency (microseconds)'),
+                           default_value=yaml_defaults['max_acceptable_latency_us'],
+                           description='Override benchmark.max_acceptable_latency_us from config'),
         DeclareLaunchArgument('stats_interval',
-                           description='Statistics publishing interval in seconds'),
-        
-        # ===== SENSOR PARAMETERS NEEDED BY BENCHMARK NODE =====
-        # These are declared in base_sensor_launch.py but needed here for benchmark_node parameters
+                           default_value=yaml_defaults['stats_interval'],
+                           description='Override output.stats_interval from config'),
         DeclareLaunchArgument('imu_rate',
-                           description='IMU publish rate in Hz (from base_sensor_launch.py)'),
+                           default_value=yaml_defaults['imu_rate'],
+                           description='Override synthetic_sensor.imu.rate from config'),
         DeclareLaunchArgument('encoder_rate',
-                           description='Encoder publish rate in Hz (from base_sensor_launch.py)'),
+                           default_value=yaml_defaults['encoder_rate'],
+                           description='Override synthetic_sensor.encoder.rate from config'),
     ]
     
     # ========================================================================
@@ -81,7 +101,7 @@ def generate_launch_description():
     base_sensor_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(
-                GetPackageShare('benchmark').find('benchmark'),
+                FindPackageShare('benchmark').find('benchmark'),
                 'launch',
                 'base_sensor_launch.py'
             )

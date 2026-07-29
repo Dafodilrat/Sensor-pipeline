@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Launch file for benchmarking MEAN FILTER performance (Task 4.3).
+Launch file for benchmarking FIXED MEAN FILTER performance (Task 4.3).
 
 This launch file starts:
 1. Synthetic data generator (includes base_sensor_launch.py)
-2. Mean filter node with configurable parameters
-3. Benchmark node that subscribes to mean filter output and measures performance
+2. Fixed MA filter node with configurable parameters
+3. Benchmark node that subscribes to fixed MA filter output and measures performance
 
 Usage:
     # Basic launch with defaults from base_sensor_launch.py (200Hz IMU, 50Hz encoder)
@@ -29,7 +29,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare, GetPackageShare
+from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
@@ -39,18 +39,21 @@ def generate_launch_description():
     # Sensor arguments are handled by the included base_sensor_launch.py
     # ========================================================================
     
+    # Default parameter values from benchmark_params.yaml
+    # These will be used if not overridden via command line
+    yaml_defaults = {
+        'ma_window_size': '100',
+        'ma_timeout_seconds': '0.15',
+        'test_duration': '30.0',
+        'warmup_duration': '2.0',
+        'max_acceptable_latency_us': '1000',
+        'stats_interval': '1.0',
+        'imu_rate': '200.0',
+        'encoder_rate': '50.0',
+    }
+    
     launch_args = [
-        # ===== MEAN FILTER CONFIGURATION (from mean_filter_node.ros__parameters in YAML) =====
-        DeclareLaunchArgument('ma_window_size',
-                           description='Mean filter window size (from mean_filter_node.ros__parameters)'),
-        DeclareLaunchArgument('use_time_based_ma',
-                           description='Use time-based window instead of sample count (from mean_filter_node.ros__parameters)'),
-        DeclareLaunchArgument('ma_window_duration_ms',
-                           description='Time window duration in ms (from mean_filter_node.ros__parameters)'),
-        DeclareLaunchArgument('ma_timeout_seconds',
-                           description='Filter reset timeout (from mean_filter_node.ros__parameters)'),
-        
-        # Path to the combined benchmark config file (contains both synthetic_sensor and benchmark_node params)
+        # Path to the combined benchmark config file (contains all parameters)
         DeclareLaunchArgument('benchmark_config',
                              default_value=PathJoinSubstitution([
                                  FindPackageShare('benchmark'),
@@ -59,21 +62,32 @@ def generate_launch_description():
                              ]),
                              description='Path to combined benchmark config file'),
         
+        # Parameters that can be overridden via command line
+        # Defaults match values in benchmark_params.yaml
+        DeclareLaunchArgument('ma_window_size',
+                           default_value=yaml_defaults['ma_window_size'],
+                           description='Override fixed_ma_node.ma_window_size from config'),
+        DeclareLaunchArgument('ma_timeout_seconds', 
+                           default_value=yaml_defaults['ma_timeout_seconds'],
+                           description='Override fixed_ma_node.timeout_seconds from config'),
         DeclareLaunchArgument('test_duration',
-                           description='Benchmark test duration in seconds'),
+                           default_value=yaml_defaults['test_duration'],
+                           description='Override benchmark.test_duration from config'),
         DeclareLaunchArgument('warmup_duration',
-                           description='Warmup period before measurements start'),
+                           default_value=yaml_defaults['warmup_duration'],
+                           description='Override benchmark.warmup_duration from config'),
         DeclareLaunchArgument('max_acceptable_latency_us',
-                           description='Warning threshold for processing latency (microseconds)'),
+                           default_value=yaml_defaults['max_acceptable_latency_us'],
+                           description='Override benchmark.max_acceptable_latency_us from config'),
         DeclareLaunchArgument('stats_interval',
-                           description='Statistics publishing interval in seconds'),
-        
-        # ===== SENSOR PARAMETERS NEEDED BY BENCHMARK NODE =====
-        # These are declared in base_sensor_launch.py but needed here for benchmark_node parameters
+                           default_value=yaml_defaults['stats_interval'],
+                           description='Override output.stats_interval from config'),
         DeclareLaunchArgument('imu_rate',
-                           description='IMU publish rate in Hz (from base_sensor_launch.py)'),
+                           default_value=yaml_defaults['imu_rate'],
+                           description='Override synthetic_sensor.imu.rate from config'),
         DeclareLaunchArgument('encoder_rate',
-                           description='Encoder publish rate in Hz (from base_sensor_launch.py)'),
+                           default_value=yaml_defaults['encoder_rate'],
+                           description='Override synthetic_sensor.encoder.rate from config'),
     ]
     
     # ========================================================================
@@ -83,7 +97,7 @@ def generate_launch_description():
     base_sensor_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(
-                GetPackageShare('benchmark').find('benchmark'),
+                FindPackageShare('benchmark').find('benchmark'),
                 'launch',
                 'base_sensor_launch.py'
             )
@@ -96,24 +110,20 @@ def generate_launch_description():
     
     additional_nodes = [
         
-        # 1. MEAN FILTER NODE
+        # 1. FIXED MA NODE
         Node(
             package='signal_processing_cpp',
-            executable='mean_filter_node',
-            name='mean_filter_node',
+            executable='fixed_ma_node',
+            name='fixed_ma_node',
             output='screen',
             parameters=[
-                # Allow command-line overrides
+                # Allow command-line overrides - convert to float if needed
                 {'ma_window_size': LaunchConfiguration('ma_window_size')},
-                {'use_time_based_ma': LaunchConfiguration('use_time_based_ma')},
-                {'ma_window_duration_ms': LaunchConfiguration('ma_window_duration_ms')},
                 {'timeout_seconds': LaunchConfiguration('ma_timeout_seconds')},
-                # Load from YAML file - ROS2 will use mean_filter_node section
-                LaunchConfiguration('benchmark_config')
             ]
         ),
         
-        # 2. MEAN FILTER BENCHMARK NODE
+        # 2. FIXED MA FILTER BENCHMARK NODE
         Node(
             package='benchmark',
             executable='mean_benchmark_node',
@@ -130,7 +140,7 @@ def generate_launch_description():
                 {'output.log_level': 'INFO'},
                 
                 # Load the combined config file - ROS2 will only use benchmark parameters
-                LaunchConfiguration('benchmark_config')
+                LaunchConfiguration('benchmark_config'),
             ]
         ),
         

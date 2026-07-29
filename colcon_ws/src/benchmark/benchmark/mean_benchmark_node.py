@@ -15,14 +15,14 @@ from benchmark.benchmark_base_node import BenchmarkBaseNode
 
 
 class MeanBenchmarkNode(BenchmarkBaseNode):
-    """Mean Filter Benchmark Node - inherits all functionality from base class."""
+    """Fixed MA Filter Benchmark Node - inherits all functionality from base class."""
     
     def __init__(self):
         super().__init__(
             node_name='mean_benchmark_node',
-            filter_type='MEAN FILTER',
-            imu_topic='mean_accel',      # Subscribe to mean filter IMU output
-            output_file_prefix='mean_benchmark'
+            filter_type='FIXED MEAN FILTER',
+            imu_topic='fixed_ma_accel',      # Subscribe to fixed MA filter IMU output
+            output_file_prefix='fixed_ma_benchmark'
         )
 
 

@@ -1,11 +1,9 @@
-/**
- * Combined configuration file for benchmark package
- * Contains parameters for all nodes in the pipeline:
- * - synthetic_sensor: data generation
- * - mean_filter_node: moving average filtering  
- * - lp_node: low-pass filtering
- * - benchmark_node: performance benchmarking
- */
+# Combined configuration file for benchmark package
+# Contains parameters for all nodes in the pipeline:
+# - synthetic_sensor: data generation
+# - fixed_ma_node: fixed window moving average filtering  
+# - lp_node: low-pass filtering
+# - benchmark_node: performance benchmarking
 
 synthetic_sensor:
   ros__parameters:
@@ -23,8 +21,8 @@ synthetic_sensor:
     imu:
       rate: 200.0
       noise_std: 0.05
-      drop_rate: 0.005
-      jitter_range: 0.1
+      drop_rate: 0.000
+      jitter_range: 0.0
 
     # Encoder settings (lower rate)
     encoder:
@@ -32,13 +30,11 @@ synthetic_sensor:
       drop_rate: 0.01
       jitter_range: 0.15
 
-mean_filter_node:
+fixed_ma_node:
   ros__parameters:
-    # Mean Filter configuration
-    ma_window_size: 10
-    use_time_based_ma: false
-    ma_window_duration_ms: 50.0
-    timeout_seconds: 5.0
+    # Fixed Moving Average Filter configuration
+    ma_window_size: 100
+    timeout_seconds: 0.15
 
 lp_node:
   ros__parameters:
