@@ -22,7 +22,7 @@ protected:
     T output_ = 0.0;
     T alpha_ = 0.0;
     T cutoff_freq_ = 0.0;
-    double last_dt_ = 0.0;
+    float last_dt_ = 0.0f;
     
     // Timeout functionality
     double timeout_seconds_;
@@ -52,12 +52,12 @@ protected:
     }
     
     // Calculate alpha from cutoff frequency and dt (time between samples)
-    void computeAlpha(double dt) {
+    void computeAlpha(float dt) {
         if (cutoff_freq_ > 0.0 && dt > 0.0) {
-            double rc = 1.0 / (2.0 * M_PI * cutoff_freq_);
+            T rc = static_cast<T>(1.0) / (static_cast<T>(2.0) * static_cast<T>(M_PI) * cutoff_freq_);
             alpha_ = dt / (rc + dt);
         } else {
-            alpha_ = 0.0;
+            alpha_ = static_cast<T>(0.0);
         }
     }
     
@@ -96,8 +96,16 @@ public:
         if (first_update_) {
             last_update_time_ = now;
             first_update_ = false;
+            // On first update, set output to input directly
+            output_ = new_value;
+            last_dt_ = 0.0f;  // Will be computed on next update
+            if constexpr (std::is_integral_v<T>) {
+                return applyRounding<T>(output_);
+            } else {
+                return output_;
+            }
         } else {
-            last_dt_ = std::chrono::duration<double>(now - last_update_time_).count();
+            last_dt_ = std::chrono::duration<float>(now - last_update_time_).count();
             
             // Check for timeout
             if (timeout_seconds_ > 0.0 && last_dt_ > timeout_seconds_) {
@@ -111,40 +119,40 @@ public:
         computeAlpha(last_dt_);
         
         // Apply IIR low-pass filter: output = alpha * input + (1 - alpha) * output_previous
-        double input = static_cast<double>(new_value);
-        output_ = alpha_ * input + (1.0 - alpha_) * output_;
+        T input = new_value;
+        output_ = alpha_ * input + (static_cast<T>(1.0) - alpha_) * output_;
         
         if constexpr (std::is_integral_v<T>) {
             return applyRounding<T>(output_);
         } else {
-            return static_cast<T>(output_);
+            return output_;
         }
     }
     
     virtual void reset() {
-        output_ = 0.0;
-        last_dt_ = 0.0;
+        output_ = static_cast<T>(0.0);
+        last_dt_ = 0.0f;
         first_update_ = true;  // Reset first update flag so next update initializes timestamp
     }
     
     // Set cutoff frequency (will be used to compute alpha on next update)
-    void set_cutoff(double cutoff_freq) {
-        validate_cutoff(cutoff_freq);
+    void set_cutoff(T cutoff_freq) {
+        validate_cutoff(static_cast<double>(cutoff_freq));
         cutoff_freq_ = cutoff_freq;
     }
     
     // Get current cutoff frequency
-    double get_cutoff() const {
+    T get_cutoff() const {
         return cutoff_freq_;
     }
 
     // Get the last dt (time between samples)
-    double get_last_dt() const {
+    float get_last_dt() const {
         return last_dt_;
     }
 
     // Get current alpha value
-    double get_alpha() const {
+    T get_alpha() const {
         return alpha_;
     }
     

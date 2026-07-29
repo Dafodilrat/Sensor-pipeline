@@ -37,9 +37,8 @@ def test_imports():
         print("✓ Successfully imported buffer size submodules")
         
         # Test that type classes are available
-        from py_moving_average.FixedMovingAverage.smallbuffer import Integer, Double, Float
+        from py_moving_average.FixedMovingAverage.smallbuffer import Integer, Float
         from py_moving_average.TimeDurationMovingAverage.smallbuffer import Integer as TD_Integer
-        from py_moving_average.TimeDurationMovingAverage.smallbuffer import Double as TD_Double
         from py_moving_average.TimeDurationMovingAverage.smallbuffer import Float as TD_Float
         print("✓ Successfully imported type classes")
         
@@ -53,16 +52,16 @@ def test_imports():
         return False
 
 
-def test_fixed_moving_average_double():
-    """Test FixedMovingAverage with double precision."""
-    print("\nTesting FixedMovingAverage Double...")
+def test_fixed_moving_average_float():
+    """Test FixedMovingAverage with float precision."""
+    print("\nTesting FixedMovingAverage Float...")
     
     try:
-        from py_moving_average.FixedMovingAverage.mediumbuffer import Double
+        from py_moving_average.FixedMovingAverage.mediumbuffer import Float
         
         # Create a fixed moving average with window size 5
-        ma = Double(5)
-        print(f"✓ Created FixedMovingAverage Double with window size 5")
+        ma = Float(5)
+        print(f"✓ Created FixedMovingAverage Float with window size 5")
         
         # Test basic functionality
         test_values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
@@ -112,11 +111,11 @@ def test_fixed_moving_average_double():
         return True
         
     except Exception as e:
-        print(f"✗ Exception in FixedMovingAverage Double test: {e}")
+        print(f"✗ Exception in FixedMovingAverage Float test: {e}")
         return False
 
 
-def test_fixed_moving_average_float():
+def test_time_duration_moving_average_float():
     """Test FixedMovingAverage with float precision."""
     print("\nTesting FixedMovingAverage Float...")
     
@@ -151,16 +150,16 @@ def test_fixed_moving_average_float():
         return False
 
 
-def test_time_duration_moving_average_double():
-    """Test TimeDurationMovingAverage with double precision."""
-    print("\nTesting TimeDurationMovingAverage Double...")
+def test_time_duration_moving_average_float():
+    """Test TimeDurationMovingAverage with float precision."""
+    print("\nTesting TimeDurationMovingAverage Float...")
     
     try:
-        from py_moving_average.TimeDurationMovingAverage.mediumbuffer import Double
+        from py_moving_average.TimeDurationMovingAverage.mediumbuffer import Float
         
         # Create a time-based moving average with explicit window size and duration
-        td_ma = Double(12, timedelta(milliseconds=1000))
-        print(f"✓ Created TimeDurationMovingAverage Double with window_size=12, window_duration=1000ms")
+        td_ma = Float(12, timedelta(milliseconds=1000))
+        print(f"✓ Created TimeDurationMovingAverage Float with window_size=12, window_duration=1000ms")
         
         # Test properties
         if td_ma.window_duration != timedelta(milliseconds=1000):
@@ -200,7 +199,7 @@ def test_time_duration_moving_average_double():
         return True
         
     except Exception as e:
-        print(f"✗ Exception in TimeDurationMovingAverage Double test: {e}")
+        print(f"✗ Exception in TimeDurationMovingAverage Float test: {e}")
         return False
 
 
@@ -234,11 +233,11 @@ def test_error_handling():
     print("\nTesting error handling...")
     
     try:
-        from py_moving_average.TimeDurationMovingAverage.mediumbuffer import Double
+        from py_moving_average.TimeDurationMovingAverage.mediumbuffer import Float
         
         # Test invalid window duration (zero or negative)
         try:
-            td_ma = Double(10, timedelta(milliseconds=0))
+            td_ma = Float(10, timedelta(milliseconds=0))
             print("✗ Should have raised ValueError for window_duration=0")
             return False
         except ValueError:
@@ -249,7 +248,7 @@ def test_error_handling():
         
         # Test negative window duration
         try:
-            td_ma = Double(10, timedelta(milliseconds=-1000))
+            td_ma = Float(10, timedelta(milliseconds=-1000))
             print("✗ Should have raised ValueError for negative window_duration")
             return False
         except ValueError:
@@ -279,7 +278,7 @@ def test_buffer_sizes():
         print("✓ Small buffer (100) works correctly")
         
         # Test medium buffer
-        from py_moving_average.FixedMovingAverage.mediumbuffer import Double as MA_Medium
+        from py_moving_average.FixedMovingAverage.mediumbuffer import Float as MA_Medium
         ma_medium = MA_Medium(500)
         if ma_medium.max_size != 1000:
             print(f"✗ Medium buffer has wrong size: {ma_medium.max_size}, expected 1000")
@@ -305,12 +304,12 @@ def test_timeout_functionality():
     print("\nTesting timeout functionality...")
     
     try:
-        from py_moving_average.FixedMovingAverage.mediumbuffer import Double
-        from py_moving_average.TimeDurationMovingAverage.mediumbuffer import Double as TD_Double
+        from py_moving_average.FixedMovingAverage.mediumbuffer import Float
+        from py_moving_average.TimeDurationMovingAverage.mediumbuffer import Float as TD_Float
         import time
         
         # Test 1: FixedMovingAverage with timeout disabled (default)
-        ma_no_timeout = Double(5)
+        ma_no_timeout = Float(5)
         if ma_no_timeout.timeout != -1.0:
             print(f"✗ Default timeout should be -1.0, got {ma_no_timeout.timeout}")
             return False
@@ -321,7 +320,7 @@ def test_timeout_functionality():
         
         # Test 2: FixedMovingAverage with timeout enabled
         timeout_val = 0.1
-        ma_with_timeout = Double(5, timeout_val)
+        ma_with_timeout = Float(5, timeout_val)
         if ma_with_timeout.timeout != timeout_val:
             print(f"✗ Timeout should be {timeout_val}, got {ma_with_timeout.timeout}")
             return False
@@ -341,7 +340,7 @@ def test_timeout_functionality():
         print("✓ set_timeout method works correctly")
         
         # Test 4: Timeout reset behavior
-        ma_timeout = Double(5, 0.05)
+        ma_timeout = Float(5, 0.05)
         for i in range(10):
             ma_timeout.update(float(i))
             time.sleep(0.01)
@@ -359,7 +358,7 @@ def test_timeout_functionality():
         print("✓ Timeout reset works correctly")
         
         # Test 5: TimeDurationMovingAverage with timeout
-        td_ma = TD_Double(5, timedelta(milliseconds=100), 0.05)
+        td_ma = TD_Float(5, timedelta(milliseconds=100), 0.05)
         if td_ma.timeout != 0.05:
             print(f"✗ TD_MA timeout should be 0.05, got {td_ma.timeout}")
             return False
@@ -367,14 +366,14 @@ def test_timeout_functionality():
         
         # Test 6: Invalid timeout values
         try:
-            Double(5, 0)
+            Float(5, 0)
             print("✗ Should have raised ValueError for timeout=0")
             return False
         except ValueError:
             print("✓ Correctly raised ValueError for timeout=0")
         
         try:
-            Double(5, -1)
+            Float(5, -1)
             print("✗ Should have raised ValueError for timeout=-1")
             return False
         except ValueError:
@@ -395,9 +394,7 @@ def run_all_tests():
     
     tests = [
         ("Imports", test_imports),
-        ("FixedMovingAverage Double", test_fixed_moving_average_double),
         ("FixedMovingAverage Float", test_fixed_moving_average_float),
-        ("TimeDurationMovingAverage Double", test_time_duration_moving_average_double),
         ("TimeDurationMovingAverage Float", test_time_duration_moving_average_float),
         ("Error Handling", test_error_handling),
         ("Buffer Sizes", test_buffer_sizes),

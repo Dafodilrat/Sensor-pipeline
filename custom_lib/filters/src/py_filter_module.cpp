@@ -22,7 +22,7 @@ void bind_LowPassFilter(py::module& m, const char* className) {
     using Class = LowPassIIRFilter<T>;
     
     py::class_<Class>(m, className)
-        .def(py::init<double, double>(),
+        .def(py::init<T, double>(),
              py::arg("cutoff_freq"),
              py::arg("timeout_seconds") = -1.0)
         .def("update", &Class::update,
@@ -87,7 +87,6 @@ PYBIND11_MODULE(py_filter, m) {
     m.doc() = "Python bindings for Filter Library - Low-pass IIR filters";
 
     // Floating-point filters
-    bind_LowPassFilter<double>(m, "LowPassIIRFilter_Double");
     bind_LowPassFilter<float>(m, "LowPassIIRFilter_Float");
     
     // Fixed-point filters

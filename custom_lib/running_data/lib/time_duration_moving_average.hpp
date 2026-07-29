@@ -17,8 +17,8 @@ private:
     RingBuffer<std::chrono::steady_clock::time_point, MaxSamples> timestamp_buffer_;
     std::chrono::milliseconds window_duration_;
 
-    double safeUpdateSum(double current, double delta, const char* operation) {
-        double test = current + delta;
+    float safeUpdateSum(float current, float delta, const char* operation) {
+        float test = current + delta;
         if (std::isfinite(current) && !std::isfinite(test)) {
             throw std::overflow_error(std::string("TimeDurationMovingAverage: ") + operation);
         }
@@ -37,7 +37,7 @@ private:
                 // pop() returns the old value that was removed
                 T old_value = this->buffer_.pop();
                 timestamp_buffer_.pop();
-                this->sum_ = safeUpdateSum(this->sum_, -static_cast<double>(old_value),
+                this->sum_ = safeUpdateSum(this->sum_, -static_cast<float>(old_value),
                                   "overflow detected when removing expired value");
             } else {
                 break;

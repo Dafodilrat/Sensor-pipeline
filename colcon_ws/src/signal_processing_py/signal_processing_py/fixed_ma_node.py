@@ -52,6 +52,9 @@ class FixedMANode(Node):
         
         self.get_logger().info(f"Fixed MA Parameters: window size={self.ma_window_size}, timeout={self.timeout_seconds}s")
         
+        # Convert timeout to float (ROS2 returns double by default)
+        self.timeout_seconds = float(self.timeout_seconds)
+        
         # Import filter modules (will fail if not built)
         self._init_filters()
         
@@ -82,11 +85,11 @@ class FixedMANode(Node):
         """Initialize fixed moving average filter instances with error handling."""
         try:
             # Import and create fixed moving average filters with timeout
-            from py_moving_average.FixedMovingAverage.mediumbuffer import Double as MA_Double
+            from py_moving_average.FixedMovingAverage.mediumbuffer import Float as MA_Float
             from py_moving_average.FixedMovingAverage.mediumbuffer import Integer as MA_Int
             
             self.ma_encoder = MA_Int(self.ma_window_size, self.timeout_seconds)
-            self.ma_accel = MA_Double(self.ma_window_size, self.timeout_seconds)
+            self.ma_accel = MA_Float(self.ma_window_size, self.timeout_seconds)
             
             self.get_logger().info("Fixed moving average filters created with timeout")
             

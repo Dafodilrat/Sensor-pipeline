@@ -50,6 +50,10 @@ class LPNode(Node):
         self.lp_cutoff_hz = self.get_parameter('lp_cutoff_hz').get_parameter_value().double_value
         self.timeout_seconds = self.get_parameter('timeout_seconds').get_parameter_value().double_value
         
+        # Convert to float for compatibility with our bindings
+        self.lp_cutoff_hz = float(self.lp_cutoff_hz)
+        self.timeout_seconds = float(self.timeout_seconds)
+        
         self.get_logger().info(f"LP Parameters: cutoff={self.lp_cutoff_hz}Hz, timeout={self.timeout_seconds}s")
         
         # Import filter modules (will fail if not built)
@@ -87,9 +91,9 @@ class LPNode(Node):
         try:
             # Use LowPassIIRFilter for both encoder and IMU
             # LowPassIIRFilter works with both integers and floats
-            from py_filter import LowPassIIRFilter_Double as LP_Double
-            self.lp_encoder = LP_Double(self.lp_cutoff_hz, self.timeout_seconds)
-            self.lp_accel = LP_Double(self.lp_cutoff_hz, self.timeout_seconds)
+            from py_filter import LowPassIIRFilter_Float as LP_Float
+            self.lp_encoder = LP_Float(self.lp_cutoff_hz, self.timeout_seconds)
+            self.lp_accel = LP_Float(self.lp_cutoff_hz, self.timeout_seconds)
             
             self.get_logger().info("Low-pass filters created with timeout")
             

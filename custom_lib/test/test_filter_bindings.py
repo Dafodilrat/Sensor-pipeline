@@ -162,14 +162,14 @@ class TestFixedPointLowPassFilter_2_30(unittest.TestCase):
         self.assertEqual(self.filter.q_scale, 1073741824)
 
 
-class TestLowPassIIRFilterDouble(unittest.TestCase):
-    """Test LowPassIIRFilter_Double"""
+class TestLowPassIIRFilterFloat(unittest.TestCase):
+    """Test LowPassIIRFilter_Float"""
 
     def setUp(self):
         """Set up test fixtures before each test method."""
         self.cutoff_freq = 10.0  # 10 Hz cutoff
         self.timeout = 1.0
-        self.filter = py_filter.LowPassIIRFilter_Double(self.cutoff_freq, self.timeout)
+        self.filter = py_filter.LowPassIIRFilter_Float(self.cutoff_freq, self.timeout)
 
     def test_basic_update(self):
         """Test basic update functionality."""
@@ -179,7 +179,7 @@ class TestLowPassIIRFilterDouble(unittest.TestCase):
 
     def test_step_response(self):
         """Test step response of the filter."""
-        self.filter = py_filter.LowPassIIRFilter_Double(1.0, 1.0)  # Lower cutoff, with timeout
+        self.filter = py_filter.LowPassIIRFilter_Float(1.0, 1.0)  # Lower cutoff, with timeout
         
         # Start with 0
         result1 = self.filter.update(0.0)
@@ -221,7 +221,7 @@ class TestLowPassIIRFilterDouble(unittest.TestCase):
         self.assertTrue(self.filter.has_timeout())
         
         # Create filter without timeout
-        no_timeout_filter = py_filter.LowPassIIRFilter_Double(10.0, -1.0)
+        no_timeout_filter = py_filter.LowPassIIRFilter_Float(10.0, -1.0)
         self.assertFalse(no_timeout_filter.has_timeout())
 
     def test_get_alpha(self):
@@ -233,21 +233,6 @@ class TestLowPassIIRFilterDouble(unittest.TestCase):
         self.assertLessEqual(alpha, 1.0)
 
 
-class TestLowPassIIRFilterFloat(unittest.TestCase):
-    """Test LowPassIIRFilter_Float"""
-
-    def setUp(self):
-        """Set up test fixtures before each test method."""
-        self.cutoff_freq = 10.0  # 10 Hz cutoff
-        self.timeout = 1.0
-        self.filter = py_filter.LowPassIIRFilter_Float(self.cutoff_freq, self.timeout)
-
-    def test_basic_update(self):
-        """Test basic update functionality."""
-        result = self.filter.update(100.5)
-        self.assertAlmostEqual(result, 100.5, places=5)
-
-
 class TestFilterComparison(unittest.TestCase):
     """Test comparisons between different filter types"""
 
@@ -256,9 +241,9 @@ class TestFilterComparison(unittest.TestCase):
         cutoff_hz = 10.0
         test_values = [0, 100, 50, 150, 100, 50, 0]
         
-        # Fixed-point uses cutoff * 100 as integer, float uses Hz as double
+        # Fixed-point uses cutoff * 100 as integer, float uses Hz as float
         fixed_filter = py_filter.FixedPointLowPassFilter_16_16(1000, 16, 10000000000)  # 10.00 Hz, 10s timeout
-        float_filter = py_filter.LowPassIIRFilter_Double(cutoff_hz, 10.0)
+        float_filter = py_filter.LowPassIIRFilter_Float(cutoff_hz, 10.0)
         
         for val in test_values:
             fixed_result = fixed_filter.update(val)

@@ -53,6 +53,10 @@ class TimeMANode(Node):
         self.ma_window_duration_ms = self.get_parameter('ma_window_duration_ms').get_parameter_value().double_value
         self.timeout_seconds = self.get_parameter('timeout_seconds').get_parameter_value().double_value
         
+        # Convert to float for compatibility with our bindings
+        self.ma_window_duration_ms = float(self.ma_window_duration_ms)
+        self.timeout_seconds = float(self.timeout_seconds)
+        
         self.get_logger().info(f"Time MA Parameters: window size={self.ma_window_size}, duration={self.ma_window_duration_ms}ms, timeout={self.timeout_seconds}s")
         
         # Import filter modules (will fail if not built)
@@ -85,11 +89,11 @@ class TimeMANode(Node):
         """Initialize time duration moving average filter instances with error handling."""
         try:
             # Import and create time-based moving average filters with timeout
-            from py_moving_average.TimeDurationMovingAverage.mediumbuffer import Double as TD_MA_Double
+            from py_moving_average.TimeDurationMovingAverage.mediumbuffer import Float as TD_MA_Float
             from py_moving_average.TimeDurationMovingAverage.mediumbuffer import Integer as TD_MA_Int
             
             self.ma_encoder = TD_MA_Int(self.ma_window_size, timedelta(milliseconds=self.ma_window_duration_ms), self.timeout_seconds)
-            self.ma_accel = TD_MA_Double(self.ma_window_size, timedelta(milliseconds=self.ma_window_duration_ms), self.timeout_seconds)
+            self.ma_accel = TD_MA_Float(self.ma_window_size, timedelta(milliseconds=self.ma_window_duration_ms), self.timeout_seconds)
             
             self.get_logger().info("Time duration moving average filters created with timeout")
             

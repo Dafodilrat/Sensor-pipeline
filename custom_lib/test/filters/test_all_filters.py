@@ -3,7 +3,7 @@
 Comprehensive test script for all filter functionality from templated classes in filters/lib.
 
 This script tests:
-- LowPassIIRFilter_Double and LowPassIIRFilter_Float (templated LowPassIIRFilter<T>)
+- LowPassIIRFilter_Float (templated LowPassIIRFilter<T>)
 - FixedPointLowPassFilter_24_8, FixedPointLowPassFilter_16_16, 
   FixedPointLowPassFilter_8_24, FixedPointLowPassFilter_2_30
   (templated FixedPointLowPassFilter<T, CalcT, FractionalBits>)
@@ -28,7 +28,6 @@ def test_imports():
         
         # Test LowPassIIRFilter classes
         classes_to_test = [
-            ('LowPassIIRFilter_Double', py_filter.LowPassIIRFilter_Double),
             ('LowPassIIRFilter_Float', py_filter.LowPassIIRFilter_Float),
         ]
         
@@ -64,98 +63,6 @@ def test_imports():
         return False
     except Exception as e:
         print(f"✗ Unexpected error during import: {e}")
-        return False
-
-
-def test_low_pass_iir_filter_double():
-    """Test LowPassIIRFilter_Double functionality."""
-    print("\nTesting LowPassIIRFilter_Double...")
-    
-    try:
-        import py_filter
-        
-        # Create filter with 10 Hz cutoff
-        lp_filter = py_filter.LowPassIIRFilter_Double(10.0)
-        
-        # Test basic properties
-        if abs(lp_filter.get_cutoff() - 10.0) > 1e-6:
-            print(f"✗ Cutoff frequency incorrect: expected 10.0, got {lp_filter.get_cutoff()}")
-            return False
-        print(f"✓ Initial cutoff frequency: {lp_filter.get_cutoff()} Hz")
-        
-        # Test basic filtering
-        test_values = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
-        results = []
-        
-        for val in test_values:
-            result = lp_filter.update(val)
-            results.append(result)
-        
-        # Check first output
-        if abs(results[0] - 0.0) > 1e-6:
-            print(f"✗ First output should be 0.0, got {results[0]}")
-            return False
-        
-        # Check smoothing effect (output should lag behind input)
-        if results[-1] >= results[-2] >= results[0]:
-            print("✓ Output is properly smoothed (lagging behind input)")
-        else:
-            print("✗ Output doesn't show expected smoothing behavior")
-            return False
-        
-        # Test cutoff frequency change
-        lp_filter.set_cutoff(20.0)
-        if abs(lp_filter.get_cutoff() - 20.0) > 1e-6:
-            print(f"✗ Set cutoff frequency failed: expected 20.0, got {lp_filter.get_cutoff()}")
-            return False
-        print("✓ Cutoff frequency change works correctly")
-        
-        # Test reset
-        lp_filter.reset()
-        result = lp_filter.update(10.0)
-        if abs(result - 10.0) > 1e-6:
-            print(f"✗ Reset failed: expected 10.0, got {result}")
-            return False
-        print("✓ Reset works correctly")
-        
-        # Test timeout functionality
-        if lp_filter.has_timeout():
-            print(f"✓ Timeout is enabled: {lp_filter.get_timeout()}")
-        else:
-            print("✓ Timeout is disabled (default)")
-        
-        # Test with timeout enabled
-        lp_with_timeout = py_filter.LowPassIIRFilter_Double(10.0, 0.5)
-        if not lp_with_timeout.has_timeout():
-            print("✗ Timeout should be enabled")
-            return False
-        if abs(lp_with_timeout.get_timeout() - 0.5) > 1e-6:
-            print(f"✗ Timeout value incorrect: expected 0.5, got {lp_with_timeout.get_timeout()}")
-            return False
-        print("✓ Timeout functionality works correctly")
-        
-        # Test alpha value access
-        lp_filter.update(5.0)
-        alpha = lp_filter.get_alpha()
-        if alpha < 0 or alpha > 1:
-            print(f"✗ Alpha should be between 0 and 1, got {alpha}")
-            return False
-        print(f"✓ Alpha value is valid: {alpha:.6f}")
-        
-        # Test last dt access
-        lp_filter.update(5.0)
-        last_dt = lp_filter.get_last_dt()
-        if last_dt < 0:
-            print(f"✗ Last dt should be non-negative, got {last_dt}")
-            return False
-        print(f"✓ Last dt is valid: {last_dt:.6f}s")
-        
-        return True
-        
-    except Exception as e:
-        print(f"✗ Exception in LowPassIIRFilter_Double test: {e}")
-        import traceback
-        traceback.print_exc()
         return False
 
 
@@ -460,9 +367,9 @@ def test_cutoff_frequency_effects():
         
         # Test with different filters
         filters = [
-            ("LowPassIIRFilter_Double (1Hz)", py_filter.LowPassIIRFilter_Double(1.0)),
-            ("LowPassIIRFilter_Double (10Hz)", py_filter.LowPassIIRFilter_Double(10.0)),
-            ("LowPassIIRFilter_Double (100Hz)", py_filter.LowPassIIRFilter_Double(100.0)),
+            ("LowPassIIRFilter_Float (1Hz)", py_filter.LowPassIIRFilter_Float(1.0)),
+            ("LowPassIIRFilter_Float (10Hz)", py_filter.LowPassIIRFilter_Float(10.0)),
+            ("LowPassIIRFilter_Float (100Hz)", py_filter.LowPassIIRFilter_Float(100.0)),
         ]
         
         results_list = []
@@ -499,8 +406,6 @@ def test_error_handling():
         
         # Test invalid cutoff frequency for LowPassIIRFilter
         test_cases = [
-            ("LowPassIIRFilter_Double(0.0)", lambda: py_filter.LowPassIIRFilter_Double(0.0)),
-            ("LowPassIIRFilter_Double(-5.0)", lambda: py_filter.LowPassIIRFilter_Double(-5.0)),
             ("LowPassIIRFilter_Float(0.0)", lambda: py_filter.LowPassIIRFilter_Float(0.0)),
             ("FixedPointLowPassFilter_16_16(0)", lambda: py_filter.FixedPointLowPassFilter_16_16(0)),  # 0.00 Hz
             ("FixedPointLowPassFilter_16_16(-1000)", lambda: py_filter.FixedPointLowPassFilter_16_16(-1000)),  # -10.00 Hz
@@ -548,7 +453,7 @@ def test_alpha_computation():
         import py_filter
         
         # Create filter with 10 Hz cutoff
-        lp_filter = py_filter.LowPassIIRFilter_Double(10.0)
+        lp_filter = py_filter.LowPassIIRFilter_Float(10.0)
         
         # RC time constant for 10 Hz: rc = 1/(2*pi*10) ≈ 0.015915
         rc = 1.0 / (2.0 * math.pi * 10.0)
@@ -592,7 +497,7 @@ def test_step_response():
         import py_filter
         
         # Create filter with 10 Hz cutoff
-        lp_filter = py_filter.LowPassIIRFilter_Double(10.0)
+        lp_filter = py_filter.LowPassIIRFilter_Float(10.0)
         
         # Apply step input
         step_input = [0.0] * 5 + [1.0] * 20
@@ -682,7 +587,7 @@ def test_timeout_behavior():
         import time
         
         # Test LowPassIIRFilter with timeout
-        lp_iir = py_filter.LowPassIIRFilter_Double(10.0, 0.1)  # 100ms timeout
+        lp_iir = py_filter.LowPassIIRFilter_Float(10.0, 0.1)  # 100ms timeout
         
         # First update
         result1 = lp_iir.update(5.0)
@@ -726,9 +631,9 @@ def test_timeout_behavior():
         return False
 
 
-def test_fixed_point_vs_double_comparison():
-    """Compare FixedPointLowPassFilter output with LowPassIIRFilter_Double output."""
-    print("\nTesting FixedPoint vs Double comparison...")
+def test_fixed_point_vs_float_comparison():
+    """Compare FixedPointLowPassFilter output with LowPassIIRFilter_Float output."""
+    print("\nTesting FixedPoint vs Float comparison...")
 
     try:
         import py_filter
@@ -736,7 +641,7 @@ def test_fixed_point_vs_double_comparison():
         
         # Create both filters with same cutoff frequency (10 Hz)
         # For FixedPointLowPassFilter: 1000 = 10.00 Hz * 100
-        lp_double = py_filter.LowPassIIRFilter_Double(10.0)
+        lp_float = py_filter.LowPassIIRFilter_Float(10.0)
         lp_fp_16_16 = py_filter.FixedPointLowPassFilter_16_16(1000)
         
         # Test signal: sinusoid with amplitude scaled for Q16.16 range (-0.5 to +0.5)
@@ -750,17 +655,17 @@ def test_fixed_point_vs_double_comparison():
             test_signal.append(signal)
         
         # Run both filters
-        double_results = []
+        float_results = []
         fp_results = []
         
         for val in test_signal:
-            double_out = lp_double.update(val)
-            # Scale double to int for fixed-point (Q16.16: multiply by 2^16)
+            float_out = lp_float.update(val)
+            # Scale float to int for fixed-point (Q16.16: multiply by 2^16)
             fp_input = int(val * (1 << 16))
             fp_out = lp_fp_16_16.update(fp_input)
             
-            double_results.append(double_out)
-            # Scale fixed-point output back to double
+            float_results.append(float_out)
+            # Scale fixed-point output back to float
             fp_results.append(fp_out / (1 << 16))
             
             # Add small delay to ensure proper time delta for filter calculations
@@ -771,8 +676,8 @@ def test_fixed_point_vs_double_comparison():
         max_rel_diff = 0.0
         num_close = 0
         
-        for i in range(len(double_results)):
-            diff = abs(double_results[i] - fp_results[i])
+        for i in range(len(float_results)):
+            diff = abs(float_results[i] - fp_results[i])
             max_diff = max(max_diff, diff)
             
             # Relative difference
@@ -823,7 +728,6 @@ def run_all_tests():
     
     tests = [
         ("Imports", test_imports),
-        ("LowPassIIRFilter_Double", test_low_pass_iir_filter_double),
         ("LowPassIIRFilter_Float", test_low_pass_iir_filter_float),
         ("FixedPointLowPassFilter_24_8", test_fixed_point_filter_24_8),
         ("FixedPointLowPassFilter_16_16", test_fixed_point_filter_16_16),
@@ -835,7 +739,7 @@ def run_all_tests():
         ("Step Response", test_step_response),
         ("Fixed-Point Precision", test_fixed_point_precision),
         ("Timeout Behavior", test_timeout_behavior),
-        ("FixedPoint vs Double Comparison", test_fixed_point_vs_double_comparison),
+        ("FixedPoint vs Float Comparison", test_fixed_point_vs_float_comparison),
     ]
     
     results = []

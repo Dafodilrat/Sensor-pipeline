@@ -227,7 +227,7 @@ def demo_running_data_fixed_moving_average():
     
     try:
         import py_moving_average as pma
-        from py_moving_average.FixedMovingAverage.mediumbuffer import Double
+        from py_moving_average.FixedMovingAverage.mediumbuffer import Float
         print("Successfully imported py_moving_average module")
     except ImportError as e:
         print(f"Failed to import py_moving_average: {e}")
@@ -236,8 +236,8 @@ def demo_running_data_fixed_moving_average():
         return
     
     # Create a fixed moving average with window size 5
-    ma = Double(5)
-    print(f"Created FixedMovingAverage Double with window size 5")
+    ma = Float(5)
+    print(f"Created FixedMovingAverage Float with window size 5")
     
     # Test basic functionality
     test_values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
@@ -282,18 +282,18 @@ def demo_running_data_time_duration_moving_average():
     
     try:
         import py_moving_average as pma
-        from py_moving_average.TimeDurationMovingAverage.mediumbuffer import Double
+        from py_moving_average.TimeDurationMovingAverage.mediumbuffer import Float
         print("Successfully imported py_moving_average module")
     except ImportError as e:
         print(f"Failed to import py_moving_average: {e}")
         return
     
     # Create a time-based moving average with explicit parameters
-    print("Creating TimeDurationMovingAverage Double...")
+    print("Creating TimeDurationMovingAverage Float...")
     print("  Window size: 12 samples")
     print("  Window duration: 1000ms")
     
-    td_ma = Double(12, timedelta(milliseconds=1000))
+    td_ma = Float(12, timedelta(milliseconds=1000))
     
     print(f"\nFilter configuration:")
     print(f"  Window duration: {td_ma.window_duration}")
@@ -320,7 +320,7 @@ def demo_running_data_buffer_sizes():
     try:
         import py_moving_average as pma
         from py_moving_average.FixedMovingAverage.smallbuffer import Integer as MA_Small
-        from py_moving_average.FixedMovingAverage.mediumbuffer import Double as MA_Medium
+        from py_moving_average.FixedMovingAverage.mediumbuffer import Float as MA_Medium
         from py_moving_average.FixedMovingAverage.largebuffer import Float as MA_Large
         print("Successfully imported py_moving_average module")
     except ImportError as e:
@@ -359,7 +359,7 @@ def demo_running_data_vs_filters_integration():
     
     try:
         import py_moving_average as pma
-        from py_moving_average.FixedMovingAverage.mediumbuffer import Double as MA_Double
+        from py_moving_average.FixedMovingAverage.mediumbuffer import Float as MA_Float
         import py_filter
         print("Successfully imported both modules")
     except ImportError as e:
@@ -367,10 +367,10 @@ def demo_running_data_vs_filters_integration():
         return
     
     # Create a moving average for smoothing
-    ma = MA_Double(5)
+    ma = MA_Float(5)
     
     # Create a low-pass filter for further processing
-    lp_filter = py_filter.LowPassIIRFilter_Double(cutoff_freq=5.0)
+    lp_filter = py_filter.LowPassIIRFilter_Float(cutoff_freq=5.0f)
     
     print("\nProcessing data through both moving average and low-pass filter:")
     print("Raw    | MA (5)   | LP (5Hz)")

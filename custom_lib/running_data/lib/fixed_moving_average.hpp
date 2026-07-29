@@ -21,7 +21,7 @@ template<typename T, size_t MaxSamples>
 class FixedMovingAverage {
 protected:
     RingBuffer<T, MaxSamples> buffer_;
-    double sum_ = 0.0;
+    float sum_ = 0.0f;
     
     // Timeout functionality
     double timeout_seconds_;
@@ -29,8 +29,8 @@ protected:
     bool first_update_ = true;
     bool timeout_occurred_ = false;
 
-    double safeUpdateSum(double current, double delta, const char* operation) {
-        double test = current + delta;
+    float safeUpdateSum(float current, float delta, const char* operation) {
+        float test = current + delta;
         if (std::isfinite(current) && !std::isfinite(test)) {
             throw std::overflow_error(std::string("FixedMovingAverage: ") + operation);
         }
@@ -107,22 +107,22 @@ public:
 
         // If buffer was full, we removed an old value, so subtract it from sum
         if (old_value != new_value) {
-            sum_ = safeUpdateSum(sum_, -static_cast<double>(old_value),
+            sum_ = safeUpdateSum(sum_, -static_cast<float>(old_value),
                                 "overflow detected when removing value");
         }
 
         // Add new value to sum
-        sum_ = safeUpdateSum(sum_, static_cast<double>(new_value),
+        sum_ = safeUpdateSum(sum_, static_cast<float>(new_value),
                         "overflow detected when adding new value");
 
         // Calculate average
-        double avg = sum_ / static_cast<double>(buffer_.size());
-        return applyRounding<T>(avg);
+        float avg = sum_ / static_cast<float>(buffer_.size());
+        return applyRounding<T>(static_cast<double>(avg));
     }
     
     virtual void reset() {
         buffer_.clear();
-        sum_ = 0.0;
+        sum_ = 0.0f;
         first_update_ = true;  // Reset first update flag so next update initializes timestamp
         timeout_occurred_ = false;
     }
