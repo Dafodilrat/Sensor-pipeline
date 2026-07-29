@@ -88,14 +88,13 @@ class TimeMANode(Node):
     def _init_filters(self):
         """Initialize time duration moving average filter instances with error handling."""
         try:
-            # Import and create time-based moving average filters with timeout
+            # Import and create time-based moving average filter for accel with timeout
+            # Only create filter for accel since encoder is passthrough
             from py_moving_average.TimeDurationMovingAverage.mediumbuffer import Float as TD_MA_Float
-            from py_moving_average.TimeDurationMovingAverage.mediumbuffer import Integer as TD_MA_Int
             
-            self.ma_encoder = TD_MA_Int(self.ma_window_size, timedelta(milliseconds=self.ma_window_duration_ms), self.timeout_seconds)
             self.ma_accel = TD_MA_Float(self.ma_window_size, timedelta(milliseconds=self.ma_window_duration_ms), self.timeout_seconds)
             
-            self.get_logger().info("Time duration moving average filters created with timeout")
+            self.get_logger().info("Time duration moving average filter created for accel with timeout")
             
         except ImportError as e:
             self.get_logger().error(f"Failed to import time duration moving average modules: {e}")
@@ -112,7 +111,7 @@ class TimeMANode(Node):
         self.ma_encoder_pub.publish(Int32(data=int(ma_result)))
         
         # Log occasionally
-        if self.ma_encoder.current_size() % 10 == 0:
+        if self.encoder_update_count % 10 == 0:
             self.get_logger().debug(f"Encoder passthrough: raw={value}, published={ma_result:.1f}")
     
     def accel_callback(self, msg):

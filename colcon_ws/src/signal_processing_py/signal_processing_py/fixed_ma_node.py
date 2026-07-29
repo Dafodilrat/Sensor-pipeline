@@ -84,14 +84,13 @@ class FixedMANode(Node):
     def _init_filters(self):
         """Initialize fixed moving average filter instances with error handling."""
         try:
-            # Import and create fixed moving average filters with timeout
+            # Import and create fixed moving average filter for accel with timeout
+            # Only create filter for accel since encoder is passthrough
             from py_moving_average.FixedMovingAverage.mediumbuffer import Float as MA_Float
-            from py_moving_average.FixedMovingAverage.mediumbuffer import Integer as MA_Int
             
-            self.ma_encoder = MA_Int(self.ma_window_size, self.timeout_seconds)
             self.ma_accel = MA_Float(self.ma_window_size, self.timeout_seconds)
             
-            self.get_logger().info("Fixed moving average filters created with timeout")
+            self.get_logger().info("Fixed moving average filter created for accel with timeout")
             
         except ImportError as e:
             self.get_logger().error(f"Failed to import moving average modules: {e}")
@@ -108,7 +107,7 @@ class FixedMANode(Node):
         self.ma_encoder_pub.publish(Int32(data=int(ma_result)))
         
         # Log occasionally
-        if self.ma_encoder.current_size() % 10 == 0:
+        if self.encoder_update_count % 10 == 0:
             self.get_logger().debug(f"Encoder passthrough: raw={value}, published={ma_result:.1f}")
     
     def accel_callback(self, msg):
