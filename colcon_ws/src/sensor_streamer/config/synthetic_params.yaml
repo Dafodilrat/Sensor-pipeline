@@ -6,6 +6,7 @@ synthetic_sensor:
     phases: [0.0, 0.0, 0.0]
     wheel_circumference: 0.203
     counts_per_revolution: 4096
+    seed: 42  # Random seed for repeatable data generation
 
     # IMU settings (high rate)
     imu:

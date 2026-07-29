@@ -17,6 +17,7 @@ class SyntheticDataNode(Node):
         self.declare_parameter('phases', [0.0, math.pi/2])
         self.declare_parameter('wheel_circumference', 0.203)
         self.declare_parameter('counts_per_revolution', 4096)
+        self.declare_parameter('seed', 42)  # Default seed for repeatability
         self.declare_parameter('imu.rate', 200.0)
         self.declare_parameter('imu.noise_std', 0.05)
         self.declare_parameter('imu.drop_rate', 0.005)
@@ -31,13 +32,18 @@ class SyntheticDataNode(Node):
         self.phases = self.get_parameter('phases').get_parameter_value().double_array_value
         self.wheel_circumference = self.get_parameter('wheel_circumference').get_parameter_value().double_value
         self.counts_per_revolution = self.get_parameter('counts_per_revolution').get_parameter_value().integer_value
+        self.seed = self.get_parameter('seed').get_parameter_value().integer_value
         self.imu_rate = self.get_parameter('imu.rate').get_parameter_value().double_value
         self.imu_noise_std = self.get_parameter('imu.noise_std').get_parameter_value().double_value
         self.imu_drop_rate = self.get_parameter('imu.drop_rate').get_parameter_value().double_value
         self.imu_jitter_range = self.get_parameter('imu.jitter_range').get_parameter_value().double_value
         self.encoder_rate = self.get_parameter('encoder.rate').get_parameter_value().double_value
         self.encoder_drop_rate = self.get_parameter('encoder.drop_rate').get_parameter_value().double_value
-        self.encoder_jitter_range = self.get_parameter('encoder.drop_rate').get_parameter_value().double_value
+        self.encoder_jitter_range = self.get_parameter('encoder.jitter_range').get_parameter_value().double_value
+        
+        # Set random seed for repeatable results
+        random.seed(self.seed)
+        self.get_logger().info(f"Random seed set to {self.seed} for repeatable data generation")
 
         # State
         self.t0 = time.time()
