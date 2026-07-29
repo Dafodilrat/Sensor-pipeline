@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <stdexcept>
 #include <algorithm>
+#include <chrono>
+#include <string>
 #include "../tools/ring_buffer.hpp"
 #include "../tools/fixed_heap.hpp"
 
@@ -19,6 +21,7 @@
 // - O(log n) removal using position lookup
 // - Type-generic: works with int, float, double
 // - Window size is now configurable at runtime (up to MaxWindowSize template param)
+// - Optional timeout: resets filter if time gap between updates exceeds threshold
 //
 // Note: This file demonstrates extensibility - it can be added to the library
 // without modifying any existing files. Users can instantiate it directly.
@@ -51,6 +54,12 @@ private:
     FixedHeap<SensorData<T, MaxWindowSize>, (MaxWindowSize + 1) / 2, MaxWindowSize, true> lower_;   // Max-heap for lower half
     FixedHeap<SensorData<T, MaxWindowSize>, (MaxWindowSize + 1) / 2, MaxWindowSize, false> upper_;  // Min-heap for upper half
     size_t next_position_ = 0;
+    
+    // Timeout functionality
+    double timeout_seconds_;
+    std::chrono::steady_clock::time_point last_update_time_;
+    bool first_update_ = true;
+    bool timeout_occurred_ = false;
 
     // Balance heaps so lower_ has at most one more than upper_
     void rebalance() {
@@ -84,15 +93,25 @@ private:
     static size_t calculateUpperCapacity(size_t window_size) {
         return window_size / 2;
     }
+    
+    // Validate timeout value
+    static void validate_timeout(double timeout_seconds) {
+        if (timeout_seconds <= 0.0) {
+            throw std::invalid_argument("Timeout must be positive");
+        }
+    }
 
 public:
-    explicit MedianFilter(size_t window_size) 
+    // Constructor with window size and optional timeout
+    // timeout_seconds <= 0 means no timeout (default behavior)
+    explicit MedianFilter(size_t window_size, double timeout_seconds = -1.0) 
         : window_size_(window_size),
           lower_capacity_(calculateLowerCapacity(window_size)),
           upper_capacity_(calculateUpperCapacity(window_size)),
           window_(),
           lower_(calculateLowerCapacity(window_size)),
-          upper_(calculateUpperCapacity(window_size)) {
+          upper_(calculateUpperCapacity(window_size)),
+          timeout_seconds_(timeout_seconds) {
         if (window_size == 0) {
             throw std::invalid_argument("Window size must be positive");
         }
@@ -103,13 +122,36 @@ public:
                 "). Increase MaxWindowSize template parameter."
             );
         }
+        if (timeout_seconds > 0.0) {
+            validate_timeout(timeout_seconds);
+        }
     }
 
     T update(T new_value) {
+        auto now = std::chrono::steady_clock::now();
+        
+        // Check for timeout on first update (no previous time to compare)
+        if (first_update_) {
+            last_update_time_ = now;
+            first_update_ = false;
+        } else if (timeout_seconds_ > 0.0) {
+            // Calculate time since last update
+            auto dt = std::chrono::duration<double>(now - last_update_time_).count();
+            
+            // Reset if gap exceeds timeout
+            if (dt > timeout_seconds_) {
+                reset();
+                timeout_occurred_ = true;
+            } else {
+                timeout_occurred_ = false;
+            }
+        }
+        last_update_time_ = now;
+        
         size_t position = next_position_ % MaxWindowSize;
         
         // If window has reached its configured size, remove oldest element from its heap
-        if (window_.size() >= window_size_) {
+        if (window_.size() >= static_cast<std::size_t>(window_size_)) {
             SensorData<T, MaxWindowSize> oldest = window_.back();
             if (!lower_.removeByPosition(oldest.position)) {
                 upper_.removeByPosition(oldest.position);
@@ -136,6 +178,8 @@ public:
         lower_.clear();
         upper_.clear();
         next_position_ = 0;
+        first_update_ = true;  // Reset first update flag so next update initializes timestamp
+        timeout_occurred_ = false;
     }
 
     size_t windowSize() const { return window_size_; }
@@ -160,7 +204,32 @@ public:
         upper_.setCapacity(upper_capacity_);
     }
     
-    bool isFull() const { return window_.size() >= window_size_; }
+    bool isFull() const { return window_.size() >= static_cast<std::size_t>(window_size_); }
+    
+    // Set timeout for reset on large dt gaps
+    // timeout_seconds <= 0 disables timeout
+    void set_timeout(double timeout_seconds) {
+        if (timeout_seconds > 0.0) {
+            validate_timeout(timeout_seconds);
+        }
+        timeout_seconds_ = timeout_seconds;
+    }
+    
+    // Get current timeout value
+    // Returns <= 0 if timeout is disabled
+    double get_timeout() const {
+        return timeout_seconds_;
+    }
+    
+    // Check if timeout is enabled
+    bool has_timeout() const {
+        return timeout_seconds_ > 0.0;
+    }
+    
+    // Check if a timeout occurred during the last update
+    bool timeout_occurred() const {
+        return timeout_occurred_;
+    }
 };
 
 // =============================================================================
