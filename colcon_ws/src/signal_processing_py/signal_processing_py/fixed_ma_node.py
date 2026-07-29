@@ -20,14 +20,10 @@ Usage:
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Int32, Float32
-import sys
-import os
 
-# Add custom_lib to Python path for imports
-custom_lib_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
-                               '../../../..', 'custom_lib')
-if os.path.exists(custom_lib_path):
-    sys.path.insert(0, custom_lib_path)
+# Use system-level py_moving_average import (installed via pip in Docker)
+# If running locally without pip install, you may need:
+#   export PYTHONPATH=/path/to/custom_lib:$PYTHONPATH
 
 
 class FixedMANode(Node):
@@ -109,7 +105,7 @@ class FixedMANode(Node):
         self.ma_encoder_pub.publish(Int32(data=int(ma_result)))
         
         # Log occasionally
-        if self.ma_encoder.currentSize() % 10 == 0:
+        if self.ma_encoder.current_size() % 10 == 0:
             self.get_logger().debug(f"Encoder fixed MA: raw={value}, ma={ma_result:.1f}")
     
     def accel_callback(self, msg):
@@ -123,7 +119,7 @@ class FixedMANode(Node):
         self.ma_accel_pub.publish(Float32(data=float(ma_result)))
         
         # Log occasionally
-        if self.ma_accel.currentSize() % 10 == 0:
+        if self.ma_accel.current_size() % 10 == 0:
             self.get_logger().debug(f"Accel fixed MA: raw={value:.3f}, ma={ma_result:.3f}")
 
 
