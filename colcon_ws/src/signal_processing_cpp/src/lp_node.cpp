@@ -23,8 +23,9 @@
 #include <memory>
 
 // Include the standalone signal processing library headers
-#include "filters/lib/fixed_point_low_pass_filter.hpp"
-#include "filters/lib/float_low_pass_filter.hpp"
+// Installed to /usr/local/include/nawe_robotics_lib via Docker
+#include "nawe_robotics_lib/filters/lib/fixed_point_low_pass_filter.hpp"
+#include "nawe_robotics_lib/filters/lib/low_pass_iir_filter.hpp"
 
 using namespace std::chrono_literals;
 
@@ -47,37 +48,32 @@ public:
                    "LP Parameters: cutoff=%.1fHz, FP bits=%d, timeout=%.3fs",
                    lp_cutoff_hz, fixed_point_bits, timeout_seconds);
 
+        // Convert parameters to the format expected by the new filter classes
+        // cutoff_freq_times_100 is int32_t (e.g., 1000 = 10.00 Hz)
+        // timeout_ns is int64_t in nanoseconds
+        int32_t cutoff_freq_times_100 = static_cast<int32_t>(lp_cutoff_hz * 100.0);
+        int64_t timeout_ns = static_cast<int64_t>(timeout_seconds * 1e9);
+
         // Initialize low-pass filters based on fixed-point bits
         // For encoder (integer) stream, use fixed-point filter with appropriate Q-format
         if (fixed_point_bits == 8) {
             // Q24.8 format
-            lp_encoder_24_8_ = std::make_unique<FixedPointLowPassFilter_24_8>(lp_cutoff_hz, 8, timeout_seconds);
+            lp_encoder_24_8_ = std::make_unique<FixedPointLowPassFilter_24_8>(cutoff_freq_times_100, 8, timeout_ns);
             active_encoder_filter_ = 8;
-        } else if (fixed_point_bits == 16) {
-            // Q16.16 format (default)
-            lp_encoder_16_16_ = std::make_unique<FixedPointLowPassFilter_16_16>(lp_cutoff_hz, 16, timeout_seconds);
-            active_encoder_filter_ = 16;
-        } else if (fixed_point_bits == 24) {
-            // Q8.24 format
-            lp_encoder_8_24_ = std::make_unique<FixedPointLowPassFilter_8_24>(lp_cutoff_hz, 24, timeout_seconds);
-            active_encoder_filter_ = 24;
-        } else if (fixed_point_bits == 30) {
-            // Q2.30 format
-            lp_encoder_2_30_ = std::make_unique<FixedPointLowPassFilter_2_30>(lp_cutoff_hz, 30, timeout_seconds);
-            active_encoder_filter_ = 30;
         } else {
-            // Default to Q16.16
-            lp_encoder_16_16_ = std::make_unique<FixedPointLowPassFilter_16_16>(lp_cutoff_hz, 16, timeout_seconds);
+            // Q16.16 format (default for 16, 24, 30, or any other value)
+            lp_encoder_16_16_ = std::make_unique<FixedPointLowPassFilter_16_16>(cutoff_freq_times_100, 16, timeout_ns);
             active_encoder_filter_ = 16;
         }
 
         // For accel (float) stream, use float filter
-        lp_accel_ = std::make_unique<FloatLowPassFilter_Double>(lp_cutoff_hz, timeout_seconds);
+        // Note: LowPassFilterDouble uses Hz and seconds (not times_100 and ns)
+        lp_accel_ = std::make_unique<LowPassFilterDouble>(lp_cutoff_hz, timeout_seconds);
 
         RCLCPP_INFO(this->get_logger(), "Low-pass filters created");
         RCLCPP_INFO(this->get_logger(), "  Encoder LP: FixedPointLowPassFilter (Q%d.%d)", 
-                   (32 - fixed_point_bits), fixed_point_bits);
-        RCLCPP_INFO(this->get_logger(), "  Accel LP: FloatLowPassFilter_Double");
+                   (32 - active_encoder_filter_), active_encoder_filter_);
+        RCLCPP_INFO(this->get_logger(), "  Accel LP: LowPassFilterDouble");
 
         // Create subscribers
         encoder_sub_ = this->create_subscription<std_msgs::msg::Int32>(
@@ -107,27 +103,18 @@ private:
         int32_t value = msg->data;
         
         // Calculate dt if we have a previous timestamp
-        double dt = std::chrono::duration<double>(current_time - last_encoder_time_).count();
+        double dt = (current_time - last_encoder_time_).seconds();
         last_encoder_time_ = current_time;
         
-        // Convert rclcpp::Time to std::chrono::steady_clock::time_point for the filter
-        auto now_time_point = std::chrono::steady_clock::time_point(
-            std::chrono::nanoseconds(current_time.nanoseconds()));
-        
         // Apply low-pass filter based on which type is active
+        // Using update() without timestamp - uses system clock internally
         int32_t lp_result = 0;
         switch (active_encoder_filter_) {
             case 8:
-                lp_result = lp_encoder_24_8_->update(value, now_time_point);
+                lp_result = lp_encoder_24_8_->update(value);
                 break;
             case 16:
-                lp_result = lp_encoder_16_16_->update(value, now_time_point);
-                break;
-            case 24:
-                lp_result = lp_encoder_8_24_->update(value, now_time_point);
-                break;
-            case 30:
-                lp_result = lp_encoder_2_30_->update(value, now_time_point);
+                lp_result = lp_encoder_16_16_->update(value);
                 break;
             default:
                 // Fallback to simple update without timestamp
@@ -155,15 +142,12 @@ private:
         double value = msg->data;
         
         // Calculate dt if we have a previous timestamp
-        double dt = std::chrono::duration<double>(current_time - last_accel_time_).count();
+        double dt = (current_time - last_accel_time_).seconds();
         last_accel_time_ = current_time;
         
-        // Convert rclcpp::Time to std::chrono::steady_clock::time_point for the filter
-        auto now_time_point = std::chrono::steady_clock::time_point(
-            std::chrono::nanoseconds(current_time.nanoseconds()));
-        
         // Apply low-pass filter
-        double lp_result = lp_accel_->update(value, now_time_point);
+        // Using update() without timestamp - uses system clock internally
+        double lp_result = lp_accel_->update(value);
         
         // Increment counter
         accel_update_count_++;
@@ -192,14 +176,12 @@ private:
     // Low-pass filter for encoder (integer) - multiple Q-format options
     std::unique_ptr<FixedPointLowPassFilter_24_8> lp_encoder_24_8_;
     std::unique_ptr<FixedPointLowPassFilter_16_16> lp_encoder_16_16_;
-    std::unique_ptr<FixedPointLowPassFilter_8_24> lp_encoder_8_24_;
-    std::unique_ptr<FixedPointLowPassFilter_2_30> lp_encoder_2_30_;
     
     // Low-pass filter for accel (float)
-    std::unique_ptr<FloatLowPassFilter_Double> lp_accel_;
+    std::unique_ptr<LowPassFilterDouble> lp_accel_;
     
     // Track which encoder filter is active
-    int active_encoder_filter_ = 16; // 8, 16, 24, or 30
+    int active_encoder_filter_ = 16; // 8 or 16
 
     // Timestamps for dt calculation
     rclcpp::Time last_encoder_time_ = this->now();

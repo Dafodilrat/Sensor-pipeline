@@ -11,78 +11,103 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 
-# Add custom lib as include directory
-# This assumes custom_lib is a sibling directory
-get_filename_component(CUSTOM_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../custom_lib" ABSOLUTE)
+# Find custom_lib pathways
+# Try multiple methods to locate the library
 
-if(EXISTS "${CUSTOM_LIB_PATH}")
-    message(STATUS "Found custom_lib at: ${CUSTOM_LIB_PATH}")
-    include_directories(
-        ${CUSTOM_LIB_PATH}/tools
-        ${CUSTOM_LIB_PATH}/filters/lib
-        ${CUSTOM_LIB_PATH}/running_data/lib
-    )
-else()
-    message(WARNING "custom_lib not found at ${CUSTOM_LIB_PATH}")
+# Method 1: Try find_package if nawe_robotics_lib CMake config exists
+find_package(nawe_robotics_lib QUIET)
+if(nawe_robotics_lib_FOUND)
+    message(STATUS "Found nawe_robotics_lib via CMake config")
+    set(CUSTOM_LIB_FOUND TRUE)
+    set(CUSTOM_LIB_INCLUDE_DIR "${nawe_robotics_lib_INCLUDE_DIRS}")
 endif()
 
-# Build the C++ processing node
-add_executable(cpp_processing_node
-    src/cpp_processing_node.cpp
-)
+# Method 2: Check if custom_lib is installed as a system package
+if(NOT CUSTOM_LIB_FOUND)
+    find_path(CUSTOM_LIB_FOUND
+        NAMES filters/lib/low_pass_iir_filter.hpp
+        PATHS
+        ${CMAKE_INSTALL_PREFIX}/include
+        /usr/local/include
+        /usr/include
+        NO_DEFAULT_PATH
+    )
+endif()
+
+# Method 4: Check environment variable
+if(NOT CUSTOM_LIB_FOUND AND DEFINED ENV{CUSTOM_LIB_PATH})
+    if(EXISTS "$ENV{CUSTOM_LIB_PATH}/filters/lib/low_pass_iir_filter.hpp")
+        set(CUSTOM_LIB_FOUND TRUE)
+        set(CUSTOM_LIB_INCLUDE_DIR "$ENV{CUSTOM_LIB_PATH}")
+    endif()
+endif()
+
+if(CUSTOM_LIB_FOUND)
+    message(STATUS "Found custom_lib headers at: ${CUSTOM_LIB_INCLUDE_DIR}")
+    include_directories(${CUSTOM_LIB_INCLUDE_DIR})
+else()
+    message(FATAL_ERROR "custom_lib not found. Please ensure it is installed or set CUSTOM_LIB_PATH environment variable.")
+endif()
 
 # Build the LP node
 add_executable(lp_node
     src/lp_node.cpp
 )
 
-# Set C++ standard
-set_target_properties(cpp_processing_node PROPERTIES
-    CXX_STANDARD 17
-    CXX_STANDARD_REQUIRED ON
+# Build the Mean Filter node
+add_executable(mean_filter_node
+    src/mean_filter_node.cpp
 )
 
+# Set C++ standard
 set_target_properties(lp_node PROPERTIES
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
 )
 
-target_include_directories(cpp_processing_node PRIVATE
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-    "$<INSTALL_INTERFACE.include>"
-    ${CUSTOM_LIB_PATH}/tools
-    ${CUSTOM_LIB_PATH}/filters/lib
-    ${CUSTOM_LIB_PATH}/running_data/lib
+set_target_properties(mean_filter_node PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
 )
 
 target_include_directories(lp_node PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-    "$<INSTALL_INTERFACE.include>"
-    ${CUSTOM_LIB_PATH}/tools
-    ${CUSTOM_LIB_PATH}/filters/lib
-    ${CUSTOM_LIB_PATH}/running_data/lib
+    "$<INSTALL_INTERFACE:include>"
+    ${CUSTOM_LIB_INCLUDE_DIR}
 )
 
-# Link against ROS2 libraries and FPM if available
-target_link_libraries(cpp_processing_node
+target_include_directories(mean_filter_node PRIVATE
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+    "$<INSTALL_INTERFACE:include>"
+    ${CUSTOM_LIB_INCLUDE_DIR}
+)
+
+# Link against ROS2 libraries (uses plain signatures inside Jazzy's macro)
+ament_target_dependencies(lp_node
     rclcpp
     std_msgs
 )
 
-target_link_libraries(lp_node
+ament_target_dependencies(mean_filter_node
     rclcpp
     std_msgs
 )
 
-# If FPM is built as a library, link against it
-find_package(fpm QUIET)
-if(fpm_FOUND)
-    target_link_libraries(cpp_processing_node PRIVATE fpm)
-    target_link_libraries(lp_node PRIVATE fpm)
+# Link against nawe_robotics_lib headers if found (using PLAIN signature to match Jazzy)
+if(nawe_robotics_lib_FOUND)
+    target_link_libraries(lp_node nawe_robotics_lib::headers)
+    target_link_libraries(mean_filter_node nawe_robotics_lib::headers)
 endif()
 
-# Install
-install(TARGETS cpp_processing_node lp_node
+# If FPM is built as a library, link against it (using PLAIN signature to match Jazzy)
+find_package(fpm QUIET)
+if(fpm_FOUND)
+    target_link_libraries(lp_node fpm)
+    target_link_libraries(mean_filter_node fpm)
+endif()
+
+# Install binary nodes
+install(TARGETS lp_node mean_filter_node
     DESTINATION lib/${PROJECT_NAME}
 )
 
