@@ -9,6 +9,12 @@ services:
     container_name: ros2_jazzy_container
     network_mode: host
     volumes:
-      - .:/workspace
+      - ./colcon_ws:/workspace/colcon_ws
+      - ./confidential:/workspace/confidential
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=/root/.Xauthority
     tty: true
     stdin_open: true
