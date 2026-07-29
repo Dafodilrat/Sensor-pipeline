@@ -166,6 +166,7 @@ ros2 run signal_processing_py time_ma_node --ros-args -p ma_window_size:=32 -p m
 
 Use the provided launch files for complete benchmark setups:
 
+#### Low-Pass Filter Benchmark
 ```bash
 # Run low-pass filter benchmark with all dependencies
 ros2 launch benchmark benchmark_low_pass.launch.py
@@ -176,12 +177,37 @@ ros2 launch benchmark benchmark_low_pass.launch.py lp_cutoff_hz:=5.0
 # Run low-pass filter benchmark with custom duration
 ros2 launch benchmark benchmark_low_pass.launch.py test_duration:=60.0
 
+# Run low-pass filter benchmark with custom IMU rate
+ros2 launch benchmark benchmark_low_pass.launch.py imu_rate:=200.0
+
 # Run low-pass filter benchmark with all custom parameters
 ros2 launch benchmark benchmark_low_pass.launch.py \
     lp_cutoff_hz:=7.0 \
     timeout_seconds:=0.15 \
     test_duration:=30.0 \
-    warmup_duration:=2.0
+    warmup_duration:=2.0 \
+    imu_rate:=200.0
+```
+
+#### Mean Filter Benchmark
+```bash
+# Run mean filter benchmark with all dependencies
+ros2 launch benchmark benchmark_mean_filter.launch.py
+
+# Run mean filter benchmark with custom window size
+ros2 launch benchmark benchmark_mean_filter.launch.py ma_window_size:=50
+
+# Run mean filter benchmark with custom IMU rate
+ros2 launch benchmark benchmark_mean_filter.launch.py imu_rate:=200.0
+
+# Run mean filter benchmark with all custom parameters
+ros2 launch benchmark benchmark_mean_filter.launch.py \
+    ma_window_size:=32 \
+    ma_timeout_seconds:=0.15 \
+    test_duration:=30.0 \
+    warmup_duration:=2.0 \
+    imu_rate:=200.0 \
+    encoder_rate:=50.0
 ```
 
 ### Running Individual Node Benchmarks
