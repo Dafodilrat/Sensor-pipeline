@@ -43,7 +43,6 @@ def generate_launch_description():
     # These will be used if not overridden via command line
     yaml_defaults = {
         'lp_cutoff_hz': '10.0',
-        'fixed_point_bits': '16',
         'timeout_seconds': '5.0',
         'test_duration': '30.0',
         'warmup_duration': '2.0',
@@ -68,9 +67,6 @@ def generate_launch_description():
         DeclareLaunchArgument('lp_cutoff_hz',
                            default_value=yaml_defaults['lp_cutoff_hz'],
                            description='Override lp_node.lp_cutoff_hz from config'),
-        DeclareLaunchArgument('fixed_point_bits', 
-                           default_value=yaml_defaults['fixed_point_bits'],
-                           description='Override lp_node.fixed_point_bits from config'),
         DeclareLaunchArgument('timeout_seconds',
                            default_value=yaml_defaults['timeout_seconds'],
                            description='Override lp_node.timeout_seconds from config'),
@@ -123,7 +119,6 @@ def generate_launch_description():
             parameters=[
                 # Allow command-line overrides
                 {'lp_cutoff_hz': LaunchConfiguration('lp_cutoff_hz')},
-                {'fixed_point_bits': LaunchConfiguration('fixed_point_bits')},
                 {'timeout_seconds': LaunchConfiguration('timeout_seconds')},
                 # Load from YAML file - ROS2 will use lp_node.ros__parameters section
                 LaunchConfiguration('benchmark_config')
