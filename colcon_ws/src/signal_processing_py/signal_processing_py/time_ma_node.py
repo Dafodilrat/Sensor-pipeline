@@ -20,15 +20,11 @@ Usage:
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Int32, Float32
-import sys
-import os
 from datetime import timedelta
 
-# Add custom_lib to Python path for imports
-custom_lib_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
-                               '../../../..', 'custom_lib')
-if os.path.exists(custom_lib_path):
-    sys.path.insert(0, custom_lib_path)
+# Use system-level py_moving_average import (installed via pip in Docker)
+# If running locally without pip install, you may need:
+#   export PYTHONPATH=/path/to/custom_lib:$PYTHONPATH
 
 
 class TimeMANode(Node):
@@ -49,7 +45,7 @@ class TimeMANode(Node):
         
         # Declare parameters with defaults
         self.declare_parameter('ma_window_size', 5)
-        self.declare_parameter('ma_window_duration_ms', 100.0)
+        self.declare_parameter('ma_window_duration_ms', 200.0)
         self.declare_parameter('timeout_seconds', 0.15)  # 150ms timeout for dropout gaps
         
         # Get parameter values
@@ -103,40 +99,32 @@ class TimeMANode(Node):
     
     def encoder_callback(self, msg):
         """Callback for encoder (integer) stream."""
-        import time
-        from datetime import datetime
-        
-        current_time = time.time()
         value = msg.data
-        timestamp = datetime.fromtimestamp(current_time)
         
         # Apply time-based moving average
-        ma_result = self.ma_encoder.update(value, timestamp)
+        # Note: timestamps are managed internally by the filter
+        ma_result = self.ma_encoder.update(value)
         
         # Publish results
         self.ma_encoder_pub.publish(Int32(data=int(ma_result)))
         
         # Log occasionally
-        if self.ma_encoder.currentSize() % 10 == 0:
+        if self.ma_encoder.current_size() % 10 == 0:
             self.get_logger().debug(f"Encoder time MA: raw={value}, ma={ma_result:.1f}")
     
     def accel_callback(self, msg):
         """Callback for acceleration (float) stream."""
-        import time
-        from datetime import datetime
-        
-        current_time = time.time()
         value = msg.data
-        timestamp = datetime.fromtimestamp(current_time)
         
         # Apply time-based moving average
-        ma_result = self.ma_accel.update(value, timestamp)
+        # Note: timestamps are managed internally by the filter
+        ma_result = self.ma_accel.update(value)
         
         # Publish results
         self.ma_accel_pub.publish(Float32(data=float(ma_result)))
         
         # Log occasionally
-        if self.ma_accel.currentSize() % 10 == 0:
+        if self.ma_accel.current_size() % 10 == 0:
             self.get_logger().debug(f"Accel time MA: raw={value:.3f}, ma={ma_result:.3f}")
 
 
