@@ -14,20 +14,16 @@ Usage:
     ros2 run signal_processing_py lp_node
     
     # With parameters
-    ros2 run signal_processing_py lp_node --ros-args -p lp_cutoff_hz:=10.0 -p fixed_point_bits:=16 -p timeout_seconds:=10.0
+    ros2 run signal_processing_py lp_node --ros-args -p lp_cutoff_hz:=10.0 -p timeout_seconds:=10.0
 """
 
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Int32, Float32
-import sys
-import os
 
-# Add custom_lib to Python path for imports
-custom_lib_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
-                               '../../../../', 'custom_lib')
-if os.path.exists(custom_lib_path):
-    sys.path.insert(0, custom_lib_path)
+# Use system-level py_filter import (installed via pip in Docker)
+# If running locally without pip install, you may need:
+#   export PYTHONPATH=/path/to/custom_lib:$PYTHONPATH
 
 
 class LPNode(Node):
@@ -48,15 +44,13 @@ class LPNode(Node):
         
         # Declare parameters with defaults
         self.declare_parameter('lp_cutoff_hz', 10.0)
-        self.declare_parameter('fixed_point_bits', 16)
         self.declare_parameter('timeout_seconds', 10.0)
         
         # Get parameter values
         self.lp_cutoff_hz = self.get_parameter('lp_cutoff_hz').get_parameter_value().double_value
-        self.fixed_point_bits = self.get_parameter('fixed_point_bits').get_parameter_value().integer_value
         self.timeout_seconds = self.get_parameter('timeout_seconds').get_parameter_value().double_value
         
-        self.get_logger().info(f"LP Parameters: cutoff={self.lp_cutoff_hz}Hz, FP bits={self.fixed_point_bits}, timeout={self.timeout_seconds}s")
+        self.get_logger().info(f"LP Parameters: cutoff={self.lp_cutoff_hz}Hz, timeout={self.timeout_seconds}s")
         
         # Import filter modules (will fail if not built)
         self._init_filters()
@@ -91,26 +85,10 @@ class LPNode(Node):
     def _init_filters(self):
         """Initialize low-pass filter instances with error handling."""
         try:
-            # Import and create low-pass filters based on fixed-point bits
-            if self.fixed_point_bits == 8:
-                from py_filter import FixedPointLowPassFilter_24_8 as LP_Int
-                self.lp_encoder = LP_Int(self.lp_cutoff_hz, 8, self.timeout_seconds)
-            elif self.fixed_point_bits == 16:
-                from py_filter import FixedPointLowPassFilter_16_16 as LP_Int
-                self.lp_encoder = LP_Int(self.lp_cutoff_hz, 16, self.timeout_seconds)
-            elif self.fixed_point_bits == 24:
-                from py_filter import FixedPointLowPassFilter_8_24 as LP_Int
-                self.lp_encoder = LP_Int(self.lp_cutoff_hz, 24, self.timeout_seconds)
-            elif self.fixed_point_bits == 30:
-                from py_filter import FixedPointLowPassFilter_2_30 as LP_Int
-                self.lp_encoder = LP_Int(self.lp_cutoff_hz, 30, self.timeout_seconds)
-            else:
-                # Default to 16
-                from py_filter import FixedPointLowPassFilter_16_16 as LP_Int
-                self.lp_encoder = LP_Int(self.lp_cutoff_hz, 16, self.timeout_seconds)
-            
-            # Float low-pass filter
-            from py_filter import FloatLowPassFilter_Double as LP_Double
+            # Use LowPassIIRFilter for both encoder and IMU
+            # LowPassIIRFilter works with both integers and floats
+            from py_filter import LowPassIIRFilter_Double as LP_Double
+            self.lp_encoder = LP_Double(self.lp_cutoff_hz, self.timeout_seconds)
             self.lp_accel = LP_Double(self.lp_cutoff_hz, self.timeout_seconds)
             
             self.get_logger().info("Low-pass filters created with timeout")
@@ -124,7 +102,7 @@ class LPNode(Node):
         value = msg.data
         
         # Apply low-pass filter (uses system clock internally)
-        lp_result = self.lp_encoder.update(value)
+        lp_result = self.lp_encoder.update(float(value))
         
         # Increment counter
         self.encoder_update_count += 1
