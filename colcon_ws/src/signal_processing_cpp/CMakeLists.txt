@@ -54,9 +54,14 @@ add_executable(lp_node
     src/lp_node.cpp
 )
 
-# Build the Mean Filter node
-add_executable(mean_filter_node
-    src/mean_filter_node.cpp
+# Build the Fixed MA node
+add_executable(fixed_ma_node
+    src/fixed_ma_node.cpp
+)
+
+# Build the Time MA node
+add_executable(time_ma_node
+    src/time_ma_node.cpp
 )
 
 # Set C++ standard
@@ -65,7 +70,12 @@ set_target_properties(lp_node PROPERTIES
     CXX_STANDARD_REQUIRED ON
 )
 
-set_target_properties(mean_filter_node PROPERTIES
+set_target_properties(fixed_ma_node PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+)
+
+set_target_properties(time_ma_node PROPERTIES
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
 )
@@ -76,7 +86,13 @@ target_include_directories(lp_node PRIVATE
     ${CUSTOM_LIB_INCLUDE_DIR}
 )
 
-target_include_directories(mean_filter_node PRIVATE
+target_include_directories(fixed_ma_node PRIVATE
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+    "$<INSTALL_INTERFACE:include>"
+    ${CUSTOM_LIB_INCLUDE_DIR}
+)
+
+target_include_directories(time_ma_node PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
     "$<INSTALL_INTERFACE:include>"
     ${CUSTOM_LIB_INCLUDE_DIR}
@@ -88,7 +104,12 @@ ament_target_dependencies(lp_node
     std_msgs
 )
 
-ament_target_dependencies(mean_filter_node
+ament_target_dependencies(fixed_ma_node
+    rclcpp
+    std_msgs
+)
+
+ament_target_dependencies(time_ma_node
     rclcpp
     std_msgs
 )
@@ -96,18 +117,20 @@ ament_target_dependencies(mean_filter_node
 # Link against nawe_robotics_lib headers if found (using PLAIN signature to match Jazzy)
 if(nawe_robotics_lib_FOUND)
     target_link_libraries(lp_node nawe_robotics_lib::headers)
-    target_link_libraries(mean_filter_node nawe_robotics_lib::headers)
+    target_link_libraries(fixed_ma_node nawe_robotics_lib::headers)
+    target_link_libraries(time_ma_node nawe_robotics_lib::headers)
 endif()
 
 # If FPM is built as a library, link against it (using PLAIN signature to match Jazzy)
 find_package(fpm QUIET)
 if(fpm_FOUND)
     target_link_libraries(lp_node fpm)
-    target_link_libraries(mean_filter_node fpm)
+    target_link_libraries(fixed_ma_node fpm)
+    target_link_libraries(time_ma_node fpm)
 endif()
 
 # Install binary nodes
-install(TARGETS lp_node mean_filter_node
+install(TARGETS lp_node fixed_ma_node time_ma_node
     DESTINATION lib/${PROJECT_NAME}
 )
 

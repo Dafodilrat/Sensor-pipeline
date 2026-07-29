@@ -106,33 +106,20 @@ private:
         double dt = (current_time - last_encoder_time_).seconds();
         last_encoder_time_ = current_time;
         
-        // Apply low-pass filter based on which type is active
-        // Using update() without timestamp - uses system clock internally
-        int32_t lp_result = 0;
-        switch (active_encoder_filter_) {
-            case 8:
-                lp_result = lp_encoder_24_8_->update(value);
-                break;
-            case 16:
-                lp_result = lp_encoder_16_16_->update(value);
-                break;
-            default:
-                // Fallback to simple update without timestamp
-                lp_result = value;
-                break;
-        }
+        // Pass through raw value without filtering for encoder motor topic
+        int32_t lp_result = value;
         
         // Increment counter
         encoder_update_count_++;
         
-        // Publish results
+        // Publish raw value to lp_encoder topic
         auto lp_msg = std_msgs::msg::Int32();
         lp_msg.data = lp_result;
         lp_encoder_pub_->publish(lp_msg);
         
         // Log occasionally
         if (encoder_update_count_ % 10 == 0) {
-            RCLCPP_DEBUG(this->get_logger(), "Encoder LP: raw=%d, lp=%d, dt=%.3fs",
+            RCLCPP_DEBUG(this->get_logger(), "Encoder passthrough: raw=%d, published=%d, dt=%.3fs",
                          value, lp_result, dt);
         }
     }
