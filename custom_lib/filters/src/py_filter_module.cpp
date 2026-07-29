@@ -1,6 +1,6 @@
 // =============================================================================
 // Python bindings for py_filter module
-// Exposes all filter classes with naming: FilterDouble, FilterFloat, FilterFixed_*
+// Exposes all filter classes with naming: FilterFloat, FilterFixed_*
 // =============================================================================
 
 #include <pybind11/pybind11.h>
@@ -22,9 +22,9 @@ void bind_LowPassFilter(py::module& m, const char* className) {
     using Class = LowPassIIRFilter<T>;
     
     py::class_<Class>(m, className)
-        .def(py::init<T, double>(),
+        .def(py::init<T, float>(),
              py::arg("cutoff_freq"),
-             py::arg("timeout_seconds") = -1.0)
+             py::arg("timeout_seconds") = -1.0f)
         .def("update", &Class::update,
              py::arg("new_value"))
         .def("reset", &Class::reset)

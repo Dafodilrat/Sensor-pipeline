@@ -17,10 +17,10 @@ namespace py = pybind11;
 template<typename T, size_t MaxSamples>
 void bind_FixedMovingAverage(py::module& m, const char* className) {
     py::class_<FixedMovingAverage<T, MaxSamples>>(m, className)
-        .def(py::init<size_t, double>(), 
+        .def(py::init<size_t, float>(), 
              py::arg("size") = MaxSamples,
-             py::arg("timeout_seconds") = -1.0,
-             "Create with optional size and timeout parameters. timeout_seconds=-1.0 disables timeout reset.")
+             py::arg("timeout_seconds") = -1.0f,
+             "Create with optional size and timeout parameters. timeout_seconds=-1.0f disables timeout reset.")
         .def("update", &FixedMovingAverage<T, MaxSamples>::update,
              py::arg("new_value"))
         .def("reset", &FixedMovingAverage<T, MaxSamples>::reset)
@@ -46,11 +46,11 @@ void bind_TimeDurationMovingAverage(py::module& m, const char* className) {
     using Class = TimeDurationMovingAverage<T, MaxSamples>;
     
     py::class_<Class>(m, className)
-        .def(py::init<size_t, std::chrono::milliseconds, double>(),
+        .def(py::init<size_t, std::chrono::milliseconds, float>(),
              py::arg("window_size"),
              py::arg("window_duration"),
-             py::arg("timeout_seconds") = -1.0,
-             "Create with window_size, window_duration, and optional timeout. timeout_seconds=-1.0 disables timeout reset.")
+             py::arg("timeout_seconds") = -1.0f,
+             "Create with window_size, window_duration, and optional timeout. timeout_seconds=-1.0f disables timeout reset.")
         .def("update", &Class::update,
              py::arg("new_value"))
         .def("reset", &Class::reset)

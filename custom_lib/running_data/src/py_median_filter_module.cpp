@@ -39,18 +39,6 @@ void bind_MedianFilterFloatLarge(py::module& m) {
     bind_MedianFilter<float, LARGE_BUFFER>(m, "Float");
 }
 
-void bind_MedianFilterDoubleSmall(py::module& m) {
-    bind_MedianFilter<double, SMALL_BUFFER>(m, "Double");
-}
-
-void bind_MedianFilterDoubleMedium(py::module& m) {
-    bind_MedianFilter<double, MEDIUM_BUFFER>(m, "Double");
-}
-
-void bind_MedianFilterDoubleLarge(py::module& m) {
-    bind_MedianFilter<double, LARGE_BUFFER>(m, "Double");
-}
-
 PYBIND11_MODULE(py_median_filter, m) {
     m.doc() = "Python bindings for Median Filter - Demonstrates library extensibility";
 
@@ -62,15 +50,12 @@ PYBIND11_MODULE(py_median_filter, m) {
     auto smallbuffer = median_filter.def_submodule("smallbuffer", "Small buffer variants");
     bind_MedianFilterIntSmall(smallbuffer);
     bind_MedianFilterFloatSmall(smallbuffer);
-    bind_MedianFilterDoubleSmall(smallbuffer);
     
     auto mediumbuffer = median_filter.def_submodule("mediumbuffer", "Medium buffer variants");
     bind_MedianFilterIntMedium(mediumbuffer);
     bind_MedianFilterFloatMedium(mediumbuffer);
-    bind_MedianFilterDoubleMedium(mediumbuffer);
     
     auto largebuffer = median_filter.def_submodule("largebuffer", "Large buffer variants");
     bind_MedianFilterIntLarge(largebuffer);
     bind_MedianFilterFloatLarge(largebuffer);
-    bind_MedianFilterDoubleLarge(largebuffer);
 }

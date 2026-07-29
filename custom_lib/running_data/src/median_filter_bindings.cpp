@@ -14,9 +14,9 @@ namespace py = pybind11;
 template<typename T, size_t MaxWindowSize>
 void bind_MedianFilter(py::module& m, const char* className) {
     py::class_<MedianFilter<T, MaxWindowSize>>(m, className)
-        .def(py::init<size_t, double>(),
+        .def(py::init<size_t, float>(),
              py::arg("window_size") = MaxWindowSize,
-             py::arg("timeout_seconds") = -1.0,
+             py::arg("timeout_seconds") = -1.0f,
              "Create a median filter with specified window size and optional timeout (<= 0 = disabled)")
         .def("update", &MedianFilter<T, MaxWindowSize>::update,
              py::arg("new_value"),

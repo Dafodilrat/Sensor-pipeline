@@ -24,7 +24,7 @@ protected:
     float sum_ = 0.0f;
     
     // Timeout functionality
-    double timeout_seconds_;
+    float timeout_seconds_;
     std::chrono::steady_clock::time_point last_update_time_;
     bool first_update_ = true;
     bool timeout_occurred_ = false;
@@ -38,17 +38,17 @@ protected:
     }
 
     template <typename U>
-    U applyRounding(double value) const {
+    U applyRounding(float value) const {
         if constexpr (std::is_integral_v<U>) {
-            double sign = (value < 0.0) ? -1.0 : 1.0;
-            double abs_value = std::abs(value);
-            double intpart;
-            double fracpart = std::modf(abs_value, &intpart);
-            double rounded_abs_value;
+            float sign = (value < 0.0f) ? -1.0f : 1.0f;
+            float abs_value = std::abs(value);
+            float intpart;
+            float fracpart = std::modf(abs_value, &intpart);
+            float rounded_abs_value;
 
-            if (fracpart > 0.5) {
+            if (fracpart > 0.5f) {
                 rounded_abs_value = std::ceil(abs_value);
-            } else if (fracpart == 0.5) {
+            } else if (fracpart == 0.5f) {
                 rounded_abs_value = (rand() % 2 == 0) ? std::ceil(abs_value) : std::floor(abs_value);
             } else {
                 rounded_abs_value = intpart;
@@ -60,22 +60,22 @@ protected:
     }
     
     // Validate timeout value
-    static void validate_timeout(double timeout_seconds) {
-        if (timeout_seconds <= 0.0) {
+    static void validate_timeout(float timeout_seconds) {
+        if (timeout_seconds <= 0.0f) {
             throw std::invalid_argument("Timeout must be positive");
         }
     }
 
 public:
     // Constructor with size and optional timeout
-    // timeout_seconds = -1.0 means no timeout (default behavior)
-    explicit FixedMovingAverage(size_t size = MaxSamples, double timeout_seconds = -1.0) 
+    // timeout_seconds = -1.0f means no timeout (default behavior)
+    explicit FixedMovingAverage(size_t size = MaxSamples, float timeout_seconds = -1.0f) 
         : buffer_(size), 
           timeout_seconds_(timeout_seconds) {
         if (size == 0) {
             throw std::invalid_argument("Size must be positive");
         }
-        if (timeout_seconds > 0.0) {
+        if (timeout_seconds > 0.0f) {
             validate_timeout(timeout_seconds);
         }
     }
@@ -89,9 +89,9 @@ public:
         if (first_update_) {
             last_update_time_ = now;
             first_update_ = false;
-        } else if (timeout_seconds_ > 0.0) {
+        } else if (timeout_seconds_ > 0.0f) {
             // Calculate time since last update
-            auto dt = std::chrono::duration<double>(now - last_update_time_).count();
+            auto dt = std::chrono::duration<float>(now - last_update_time_).count();
             
             // Reset if gap exceeds timeout
             if (dt > timeout_seconds_) {
@@ -117,7 +117,7 @@ public:
 
         // Calculate average
         float avg = sum_ / static_cast<float>(buffer_.size());
-        return applyRounding<T>(static_cast<double>(avg));
+        return applyRounding<T>(avg);
     }
     
     virtual void reset() {
@@ -140,23 +140,23 @@ public:
     }
     
     // Set timeout for reset on large dt gaps
-    // timeout_seconds = -1.0 disables timeout
-    void set_timeout(double timeout_seconds) {
-        if (timeout_seconds > 0.0) {
+    // timeout_seconds = -1.0f disables timeout
+    void set_timeout(float timeout_seconds) {
+        if (timeout_seconds > 0.0f) {
             validate_timeout(timeout_seconds);
         }
         timeout_seconds_ = timeout_seconds;
     }
     
     // Get current timeout value
-    // Returns -1.0 if timeout is disabled
-    double get_timeout() const {
+    // Returns -1.0f if timeout is disabled
+    float get_timeout() const {
         return timeout_seconds_;
     }
     
     // Check if timeout is enabled
     bool has_timeout() const {
-        return timeout_seconds_ > 0.0;
+        return timeout_seconds_ > 0.0f;
     }
 
     // Check if a timeout occurred during the last update

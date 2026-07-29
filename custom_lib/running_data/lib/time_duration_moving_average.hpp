@@ -47,9 +47,9 @@ private:
 
 public:
     // Constructor with window duration and optional timeout
-    // timeout_seconds = -1.0 means no timeout reset (default)
+    // timeout_seconds = -1.0f means no timeout reset (default)
     explicit TimeDurationMovingAverage(size_t window_size, std::chrono::milliseconds duration, 
-                                         double timeout_seconds = -1.0)
+                                         float timeout_seconds = -1.0f)
         : FixedMovingAverage<T, MaxSamples>(window_size, timeout_seconds),
           timestamp_buffer_(window_size),
           window_duration_(duration) {

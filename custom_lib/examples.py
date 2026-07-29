@@ -202,9 +202,9 @@ def demo_filters_float():
         return
     
     # Create low-pass IIR filters
-    float_filter = py_filter.LowPassIIRFilter_Double(cutoff_freq=10.0)
+    float_filter = py_filter.LowPassIIRFilter_Float(cutoff_freq=10.0)
     
-    print(f"Filter: LowPassIIRFilter_Double")
+    print(f"Filter: LowPassIIRFilter_Float")
     print(f"Cutoff frequency: {float_filter.get_cutoff()} Hz")
     
     # Test with float values

@@ -56,7 +56,7 @@ private:
     size_t next_position_ = 0;
     
     // Timeout functionality
-    double timeout_seconds_;
+    float timeout_seconds_;
     std::chrono::steady_clock::time_point last_update_time_;
     bool first_update_ = true;
     bool timeout_occurred_ = false;
@@ -95,8 +95,8 @@ private:
     }
     
     // Validate timeout value
-    static void validate_timeout(double timeout_seconds) {
-        if (timeout_seconds <= 0.0) {
+    static void validate_timeout(float timeout_seconds) {
+        if (timeout_seconds <= 0.0f) {
             throw std::invalid_argument("Timeout must be positive");
         }
     }
@@ -104,7 +104,7 @@ private:
 public:
     // Constructor with window size and optional timeout
     // timeout_seconds <= 0 means no timeout (default behavior)
-    explicit MedianFilter(size_t window_size, double timeout_seconds = -1.0) 
+    explicit MedianFilter(size_t window_size, float timeout_seconds = -1.0f) 
         : window_size_(window_size),
           lower_capacity_(calculateLowerCapacity(window_size)),
           upper_capacity_(calculateUpperCapacity(window_size)),
@@ -134,9 +134,9 @@ public:
         if (first_update_) {
             last_update_time_ = now;
             first_update_ = false;
-        } else if (timeout_seconds_ > 0.0) {
+        } else if (timeout_seconds_ > 0.0f) {
             // Calculate time since last update
-            auto dt = std::chrono::duration<double>(now - last_update_time_).count();
+            auto dt = std::chrono::duration<float>(now - last_update_time_).count();
             
             // Reset if gap exceeds timeout
             if (dt > timeout_seconds_) {
@@ -208,8 +208,8 @@ public:
     
     // Set timeout for reset on large dt gaps
     // timeout_seconds <= 0 disables timeout
-    void set_timeout(double timeout_seconds) {
-        if (timeout_seconds > 0.0) {
+    void set_timeout(float timeout_seconds) {
+        if (timeout_seconds > 0.0f) {
             validate_timeout(timeout_seconds);
         }
         timeout_seconds_ = timeout_seconds;
@@ -217,13 +217,13 @@ public:
     
     // Get current timeout value
     // Returns <= 0 if timeout is disabled
-    double get_timeout() const {
+    float get_timeout() const {
         return timeout_seconds_;
     }
     
     // Check if timeout is enabled
     bool has_timeout() const {
-        return timeout_seconds_ > 0.0;
+        return timeout_seconds_ > 0.0f;
     }
     
     // Check if a timeout occurred during the last update
@@ -246,8 +246,3 @@ using MedianFilterIntLarge = MedianFilter<int, 1001>;
 using MedianFilterFloatSmall = MedianFilter<float, 101>;
 using MedianFilterFloatMedium = MedianFilter<float, 501>;
 using MedianFilterFloatLarge = MedianFilter<float, 1001>;
-
-// Double median filters
-using MedianFilterDoubleSmall = MedianFilter<double, 101>;
-using MedianFilterDoubleMedium = MedianFilter<double, 501>;
-using MedianFilterDoubleLarge = MedianFilter<double, 1001>;

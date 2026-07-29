@@ -25,22 +25,22 @@ protected:
     float last_dt_ = 0.0f;
     
     // Timeout functionality
-    double timeout_seconds_;
+    float timeout_seconds_;
     std::chrono::steady_clock::time_point last_update_time_;
     bool first_update_ = true;
 
     template <typename U>
-    U applyRounding(double value) const {
+    U applyRounding(float value) const {
         if constexpr (std::is_integral_v<U>) {
-            double sign = (value < 0.0) ? -1.0 : 1.0;
-            double abs_value = std::abs(value);
-            double intpart;
-            double fracpart = std::modf(abs_value, &intpart);
-            double rounded_abs_value;
+            float sign = (value < 0.0f) ? -1.0f : 1.0f;
+            float abs_value = std::abs(value);
+            float intpart;
+            float fracpart = std::modf(abs_value, &intpart);
+            float rounded_abs_value;
 
-            if (fracpart > 0.5) {
+            if (fracpart > 0.5f) {
                 rounded_abs_value = std::ceil(abs_value);
-            } else if (fracpart == 0.5) {
+            } else if (fracpart == 0.5f) {
                 rounded_abs_value = (rand() % 2 == 0) ? std::ceil(abs_value) : std::floor(abs_value);
             } else {
                 rounded_abs_value = intpart;
@@ -62,8 +62,8 @@ protected:
     }
     
     // Validate timeout value
-    static void validate_timeout(double timeout_seconds) {
-        if (timeout_seconds <= 0.0) {
+    static void validate_timeout(float timeout_seconds) {
+        if (timeout_seconds <= 0.0f) {
             throw std::invalid_argument("Timeout must be positive");
         }
     }
@@ -77,12 +77,12 @@ protected:
 
 public:
     // Constructor with cutoff frequency and optional timeout
-    // timeout_seconds = -1.0 means no timeout (default behavior)
-    explicit LowPassIIRFilter(double cutoff_freq, double timeout_seconds = -1.0) 
+    // timeout_seconds = -1.0f means no timeout (default behavior)
+    explicit LowPassIIRFilter(double cutoff_freq, float timeout_seconds = -1.0f) 
         : cutoff_freq_(cutoff_freq),
           timeout_seconds_(timeout_seconds) {
         validate_cutoff(cutoff_freq);
-        if (timeout_seconds > 0.0) {
+        if (timeout_seconds > 0.0f) {
             validate_timeout(timeout_seconds);
         }
     }
@@ -100,7 +100,7 @@ public:
             output_ = new_value;
             last_dt_ = 0.0f;  // Will be computed on next update
             if constexpr (std::is_integral_v<T>) {
-                return applyRounding<T>(output_);
+                return applyRounding<T>(static_cast<float>(output_));
             } else {
                 return output_;
             }
@@ -123,7 +123,7 @@ public:
         output_ = alpha_ * input + (static_cast<T>(1.0) - alpha_) * output_;
         
         if constexpr (std::is_integral_v<T>) {
-            return applyRounding<T>(output_);
+            return applyRounding<T>(static_cast<float>(output_));
         } else {
             return output_;
         }
@@ -157,26 +157,25 @@ public:
     }
     
     // Set timeout for reset on large dt gaps
-    // timeout_seconds = -1.0 disables timeout
-    void set_timeout(double timeout_seconds) {
-        if (timeout_seconds > 0.0) {
+    // timeout_seconds = -1.0f disables timeout
+    void set_timeout(float timeout_seconds) {
+        if (timeout_seconds > 0.0f) {
             validate_timeout(timeout_seconds);
         }
         timeout_seconds_ = timeout_seconds;
     }
     
     // Get current timeout value
-    // Returns -1.0 if timeout is disabled
-    double get_timeout() const {
+    // Returns -1.0f if timeout is disabled
+    float get_timeout() const {
         return timeout_seconds_;
     }
     
     // Check if timeout is enabled
     bool has_timeout() const {
-        return timeout_seconds_ > 0.0;
+        return timeout_seconds_ > 0.0f;
     }
 };
 
-// Type aliases for floating-point versions
-using LowPassFilterDouble = LowPassIIRFilter<double>;
+// Type alias for floating-point version
 using LowPassFilterFloat = LowPassIIRFilter<float>;
