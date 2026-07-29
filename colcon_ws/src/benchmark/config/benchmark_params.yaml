@@ -1,0 +1,72 @@
+/**
+ * Combined configuration file for benchmark package
+ * Contains parameters for all nodes in the pipeline:
+ * - synthetic_sensor: data generation
+ * - mean_filter_node: moving average filtering  
+ * - lp_node: low-pass filtering
+ * - benchmark_node: performance benchmarking
+ */
+
+synthetic_sensor:
+  ros__parameters:
+    # Synthetic data generator configuration for the benchmark pipeline
+    
+    # Shared motion parameters
+    amplitudes: [1.0, 0.3, 0.1]
+    frequencies: [0.5, 1.5, 3.0]
+    phases: [0.0, 0.0, 0.0]
+    wheel_circumference: 0.203
+    counts_per_revolution: 4096
+    seed: 42  # Random seed for repeatable data generation
+
+    # IMU settings (high rate for Task 4.3)
+    imu:
+      rate: 200.0
+      noise_std: 0.05
+      drop_rate: 0.005
+      jitter_range: 0.1
+
+    # Encoder settings (lower rate)
+    encoder:
+      rate: 50.0
+      drop_rate: 0.01
+      jitter_range: 0.15
+
+mean_filter_node:
+  ros__parameters:
+    # Mean Filter configuration
+    ma_window_size: 10
+    use_time_based_ma: false
+    ma_window_duration_ms: 50.0
+    timeout_seconds: 5.0
+
+lp_node:
+  ros__parameters:
+    # Low-Pass Filter configuration
+    lp_cutoff_hz: 10.0
+    fixed_point_bits: 16
+    timeout_seconds: 5.0
+
+benchmark_node:
+  ros__parameters:
+    # Benchmark configuration for Task 4.3 - Testing filter performance at high rates
+    
+    # Target configuration - which filtered topics to benchmark
+    benchmark:
+      target: mean_filter  # Options: raw, mean_filter, low_pass_filter, both_filters
+      test_duration: 30.0
+      warmup_duration: 2.0
+      measure_latency: true
+      measure_throughput: true
+      max_acceptable_latency_us: 1000
+      expected_imu_rate: 200.0
+      expected_encoder_rate: 50.0
+      rate_tolerance_percent: 5.0
+      
+    # Output configuration
+    output:
+      publish_filtered_imu: true
+      publish_filtered_encoder: true
+      publish_stats: true
+      stats_interval: 1.0
+      log_level: "INFO"
