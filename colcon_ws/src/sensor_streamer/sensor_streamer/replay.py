@@ -1,5 +1,6 @@
 import csv
 import time
+import math
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Int32, Float32
@@ -18,12 +19,33 @@ class ReplayDataNode(Node):
         # Load CSV data
         self.data = self.load_csv()
         
+        # Calculate sensor frequency from timestamps
+        self.sensor_hz = None
+        self.sensor_hz_rounded = None
+        self.time_range = None
+        if len(self.data) > 1:
+            timestamps = [point['timestamp'] for point in self.data]
+            self.time_range = timestamps[-1] - timestamps[0]
+            if self.time_range > 0:
+                self.sensor_hz = (len(self.data) - 1) / self.time_range
+                self.sensor_hz_rounded = math.ceil(self.sensor_hz)
+
+        # Log startup info
         self.get_logger().info(f"Replay started with {len(self.data)} samples from {self.csv_file}")
+        if self.sensor_hz_rounded is not None:
+            self.get_logger().info(f"Average sensor rate: {self.sensor_hz_rounded} Hz (over {self.time_range:.2f} seconds)")
+        else:
+            if len(self.data) <= 1:
+                self.get_logger().warn("Only one data point - cannot calculate frequency")
+            else:
+                self.get_logger().warn("All timestamps are identical - cannot calculate frequency")
 
         # Start replay
         self.start_time = time.time()
         self.index = 0
-        self.timer = self.create_timer(0.005, self.publish_replay_data)  # 200 Hz timer
+        self.last_publish_time = 0.0
+        self.timer = None
+        self.schedule_next_publish()
 
     def load_csv(self):
         data = []
@@ -71,24 +93,45 @@ class ReplayDataNode(Node):
                 })
         return data
 
-    def publish_replay_data(self):
+    def schedule_next_publish(self):
+        """Schedule the next publish event based on the next message's timestamp."""
         if self.index >= len(self.data):
             self.get_logger().info("Reached end of data")
-            self.timer.cancel()
+            if self.timer is not None:
+                self.timer.cancel()
             return
 
         current_time = time.time() - self.start_time
         target_time = self.data[self.index]['timestamp']
+        time_to_wait = target_time - current_time
+        
+        if time_to_wait <= 0:
+            # We're behind schedule, publish immediately
+            self.publish_current_message()
+        else:
+            # Schedule a timer for the exact target time
+            if self.timer is not None:
+                self.timer.cancel()
+            self.timer = self.create_timer(time_to_wait, self.publish_current_message)
 
-        # Skip if not yet time to publish this sample
-        if current_time < target_time:
+    def publish_current_message(self):
+        """Publish the current message and schedule the next one."""
+        if self.index >= len(self.data):
+            self.get_logger().info("Reached end of data")
+            if self.timer is not None:
+                self.timer.cancel()
             return
 
+        current_time = time.time() - self.start_time
+        
         # Publish the data
         self.encoder_pub.publish(Int32(data=self.data[self.index]['encoder_count']))
         self.imu_pub.publish(Float32(data=self.data[self.index]['accel_x_mss']))
-
+        self.last_publish_time = current_time
         self.index += 1
+        
+        # Schedule the next publish
+        self.schedule_next_publish()
 
 def main(args=None):
     # CSV file path is passed as argument
