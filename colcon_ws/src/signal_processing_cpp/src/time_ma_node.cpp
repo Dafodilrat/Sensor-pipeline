@@ -34,26 +34,25 @@ public:
     {
         // Declare parameters with defaults
         this->declare_parameter<int>("ma_window_size", 5);
-        this->declare_parameter<double>("ma_window_duration_ms", 200.0);
-        this->declare_parameter<double>("timeout_seconds", 0.15);  // 150ms timeout for dropout gaps
+        this->declare_parameter<float>("ma_window_duration_ms", 200.0f);
+        this->declare_parameter<float>("timeout_seconds", 0.15f);  // 150ms timeout for dropout gaps
 
         // Get parameter values
         int ma_window_size = this->get_parameter("ma_window_size").as_int();
-        double ma_window_duration_ms = this->get_parameter("ma_window_duration_ms").as_double();
-        double timeout_seconds = this->get_parameter("timeout_seconds").as_double();
+        float ma_window_duration_ms = this->get_parameter("ma_window_duration_ms").as_float();
+        float timeout_seconds = this->get_parameter("timeout_seconds").as_float();
 
         RCLCPP_INFO(this->get_logger(), 
                    "Time MA Parameters: window size=%d, duration=%.1fms, timeout=%.3fs",
                    ma_window_size, ma_window_duration_ms, timeout_seconds);
 
-        // Initialize time duration moving average filters with timeout
+        // Initialize time duration moving average filter for accel with timeout
         // Use largest available buffer size (LARGE_BUFFER = 10000) for maximum capacity
-        ma_encoder_ = std::make_unique<TimeDurationMovingAverage<int, 10000>>(
-            ma_window_size, std::chrono::milliseconds(static_cast<int>(ma_window_duration_ms)), timeout_seconds);
-        ma_accel_ = std::make_unique<TimeDurationMovingAverage<double, 10000>>(
+        ma_accel_ = std::make_unique<TimeDurationMovingAverage<float, 10000>>(
             ma_window_size, std::chrono::milliseconds(static_cast<int>(ma_window_duration_ms)), timeout_seconds);
 
-        RCLCPP_INFO(this->get_logger(), "Time duration moving average filters created with timeout");
+        RCLCPP_INFO(this->get_logger(), "Time duration moving average filter created for accel with timeout");
+        RCLCPP_INFO(this->get_logger(), "  Encoder: passthrough (no filtering)");
 
         // Create subscribers
         encoder_sub_ = this->create_subscription<std_msgs::msg::Int32>(
@@ -106,7 +105,7 @@ private:
 
     void accel_callback(const std_msgs::msg::Float32::SharedPtr msg) {
         auto current_time = this->now();
-        double value = msg->data;
+        float value = msg->data;
         
         // Calculate dt if we have a previous timestamp
         double dt = (current_time - last_accel_time_).seconds();
@@ -114,14 +113,14 @@ private:
         
         // Apply time-based moving average
         // Note: timestamps are managed internally by the filter
-        double ma_result = ma_accel_->update(value);
+        float ma_result = ma_accel_->update(value);
         
         // Increment counter
         accel_update_count_++;
         
         // Publish results
         auto ma_msg = std_msgs::msg::Float32();
-        ma_msg.data = static_cast<float>(ma_result);
+        ma_msg.data = ma_result;
         ma_accel_pub_->publish(ma_msg);
         
         // Log occasionally
@@ -140,8 +139,7 @@ private:
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr ma_accel_pub_;
 
     // Filter instances - time duration moving average with largest buffer (10000)
-    std::unique_ptr<TimeDurationMovingAverage<int, 10000>> ma_encoder_;
-    std::unique_ptr<TimeDurationMovingAverage<double, 10000>> ma_accel_;
+    std::unique_ptr<TimeDurationMovingAverage<float, 10000>> ma_accel_;
     
     // Timestamps for dt calculation
     rclcpp::Time last_encoder_time_ = this->now();

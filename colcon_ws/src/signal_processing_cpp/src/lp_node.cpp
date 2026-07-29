@@ -2,8 +2,8 @@
  * Low Pass Filter Processing Node for Signal Processing Pipeline
  * 
  * This node subscribes to integer and floating-point sensor streams,
- * applies low-pass filters using the standalone C++ library,
- * and publishes the filtered results.
+ * passes through encoder values (no filtering) and applies low-pass filters to accel using the standalone C++ library,
+ * and publishes the results.
  * 
  * Requirements:
  * - The custom_lib must be built and accessible
@@ -13,7 +13,7 @@
  *     ros2 run signal_processing_cpp lp_node
  *       
  *     # With parameters
- *     ros2 run signal_processing_cpp lp_node --ros-args -p lp_cutoff_hz:=10.0 -p fixed_point_bits:=16 -p timeout_seconds:=10.0
+ *     ros2 run signal_processing_cpp lp_node --ros-args -p lp_cutoff_hz:=10.0 -p timeout_seconds:=10.0
  */
 
 #include <rclcpp/rclcpp.hpp>
@@ -24,7 +24,6 @@
 
 // Include the standalone signal processing library headers
 // Installed to /usr/local/include/nawe_robotics_lib via Docker
-#include "nawe_robotics_lib/filters/lib/fixed_point_low_pass_filter.hpp"
 #include "nawe_robotics_lib/filters/lib/low_pass_iir_filter.hpp"
 
 using namespace std::chrono_literals;
@@ -35,45 +34,24 @@ public:
         : Node("lp_node")
     {
         // Declare parameters with defaults
-        this->declare_parameter<double>("lp_cutoff_hz", 10.0);
-        this->declare_parameter<int>("fixed_point_bits", 16);
-        this->declare_parameter<double>("timeout_seconds", 10.0);
+        this->declare_parameter<float>("lp_cutoff_hz", 10.0f);
+        this->declare_parameter<float>("timeout_seconds", 10.0f);
 
         // Get parameter values
-        double lp_cutoff_hz = this->get_parameter("lp_cutoff_hz").as_double();
-        int fixed_point_bits = this->get_parameter("fixed_point_bits").as_int();
-        double timeout_seconds = this->get_parameter("timeout_seconds").as_double();
+        float lp_cutoff_hz = this->get_parameter("lp_cutoff_hz").as_float();
+        float timeout_seconds = this->get_parameter("timeout_seconds").as_float();
 
         RCLCPP_INFO(this->get_logger(), 
-                   "LP Parameters: cutoff=%.1fHz, FP bits=%d, timeout=%.3fs",
-                   lp_cutoff_hz, fixed_point_bits, timeout_seconds);
-
-        // Convert parameters to the format expected by the new filter classes
-        // cutoff_freq_times_100 is int32_t (e.g., 1000 = 10.00 Hz)
-        // timeout_ns is int64_t in nanoseconds
-        int32_t cutoff_freq_times_100 = static_cast<int32_t>(lp_cutoff_hz * 100.0);
-        int64_t timeout_ns = static_cast<int64_t>(timeout_seconds * 1e9);
-
-        // Initialize low-pass filters based on fixed-point bits
-        // For encoder (integer) stream, use fixed-point filter with appropriate Q-format
-        if (fixed_point_bits == 8) {
-            // Q24.8 format
-            lp_encoder_24_8_ = std::make_unique<FixedPointLowPassFilter_24_8>(cutoff_freq_times_100, 8, timeout_ns);
-            active_encoder_filter_ = 8;
-        } else {
-            // Q16.16 format (default for 16, 24, 30, or any other value)
-            lp_encoder_16_16_ = std::make_unique<FixedPointLowPassFilter_16_16>(cutoff_freq_times_100, 16, timeout_ns);
-            active_encoder_filter_ = 16;
-        }
+                   "LP Parameters: cutoff=%.1fHz, timeout=%.3fs",
+                   lp_cutoff_hz, timeout_seconds);
 
         // For accel (float) stream, use float filter
-        // Note: LowPassFilterDouble uses Hz and seconds (not times_100 and ns)
-        lp_accel_ = std::make_unique<LowPassFilterDouble>(lp_cutoff_hz, timeout_seconds);
+        // Note: LowPassFilterFloat uses Hz and seconds (not times_100 and ns)
+        lp_accel_ = std::make_unique<LowPassFilterFloat>(lp_cutoff_hz, timeout_seconds);
 
-        RCLCPP_INFO(this->get_logger(), "Low-pass filters created");
-        RCLCPP_INFO(this->get_logger(), "  Encoder LP: FixedPointLowPassFilter (Q%d.%d)", 
-                   (32 - active_encoder_filter_), active_encoder_filter_);
-        RCLCPP_INFO(this->get_logger(), "  Accel LP: LowPassFilterDouble");
+        RCLCPP_INFO(this->get_logger(), "Low-pass filter created for accel");
+        RCLCPP_INFO(this->get_logger(), "  Accel LP: LowPassFilterFloat");
+        RCLCPP_INFO(this->get_logger(), "  Encoder: passthrough (no filtering)");
 
         // Create subscribers
         encoder_sub_ = this->create_subscription<std_msgs::msg::Int32>(
@@ -126,7 +104,7 @@ private:
 
     void accel_callback(const std_msgs::msg::Float32::SharedPtr msg) {
         auto current_time = this->now();
-        double value = msg->data;
+        float value = msg->data;
         
         // Calculate dt if we have a previous timestamp
         double dt = (current_time - last_accel_time_).seconds();
@@ -134,14 +112,14 @@ private:
         
         // Apply low-pass filter
         // Using update() without timestamp - uses system clock internally
-        double lp_result = lp_accel_->update(value);
+        float lp_result = lp_accel_->update(value);
         
         // Increment counter
         accel_update_count_++;
         
         // Publish results
         auto lp_msg = std_msgs::msg::Float32();
-        lp_msg.data = static_cast<float>(lp_result);
+        lp_msg.data = lp_result;
         lp_accel_pub_->publish(lp_msg);
         
         // Log occasionally
@@ -160,15 +138,8 @@ private:
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr lp_accel_pub_;
 
     // Filter instances
-    // Low-pass filter for encoder (integer) - multiple Q-format options
-    std::unique_ptr<FixedPointLowPassFilter_24_8> lp_encoder_24_8_;
-    std::unique_ptr<FixedPointLowPassFilter_16_16> lp_encoder_16_16_;
-    
     // Low-pass filter for accel (float)
-    std::unique_ptr<LowPassFilterDouble> lp_accel_;
-    
-    // Track which encoder filter is active
-    int active_encoder_filter_ = 16; // 8 or 16
+    std::unique_ptr<LowPassFilterFloat> lp_accel_;
 
     // Timestamps for dt calculation
     rclcpp::Time last_encoder_time_ = this->now();
