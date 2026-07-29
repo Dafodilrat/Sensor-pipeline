@@ -19,7 +19,7 @@ class RingBuffer {
     public:
         // Constructor with optional runtime size limit
         explicit RingBuffer(int size_limit = static_cast<int>(Capacity)) 
-            : size_limit_(size_limit), head_(-1), tail_(0) {
+            : buffer_(), head_(-1), tail_(0), count_(0), size_limit_(size_limit) {
             if (size_limit <= 0) {
                 throw std::invalid_argument("RingBuffer: size limit must be positive");
             }
