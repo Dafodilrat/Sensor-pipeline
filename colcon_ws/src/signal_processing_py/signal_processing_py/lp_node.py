@@ -101,18 +101,18 @@ class LPNode(Node):
         """Callback for encoder (integer) stream."""
         value = msg.data
         
-        # Apply low-pass filter (uses system clock internally)
-        lp_result = self.lp_encoder.update(float(value))
+        # Pass through raw value without filtering for encoder motor topic
+        lp_result = float(value)
         
         # Increment counter
         self.encoder_update_count += 1
         
-        # Publish results
+        # Publish raw value to lp_encoder topic
         self.lp_encoder_pub.publish(Int32(data=int(lp_result)))
         
         # Log occasionally
         if self.encoder_update_count % 10 == 0:
-            self.get_logger().debug(f"Encoder LP: raw={value}, lp={lp_result:.1f}")
+            self.get_logger().debug(f"Encoder passthrough: raw={value}, published={lp_result:.1f}")
     
     def accel_callback(self, msg):
         """Callback for acceleration (float) stream."""

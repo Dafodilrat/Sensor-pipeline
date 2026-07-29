@@ -98,15 +98,15 @@ class FixedMANode(Node):
         """Callback for encoder (integer) stream."""
         value = msg.data
         
-        # Apply fixed moving average
-        ma_result = self.ma_encoder.update(value)
+        # Pass through raw value without filtering for encoder motor topic
+        ma_result = float(value)
         
-        # Publish results
+        # Publish raw value to fixed_ma_encoder topic
         self.ma_encoder_pub.publish(Int32(data=int(ma_result)))
         
         # Log occasionally
         if self.ma_encoder.current_size() % 10 == 0:
-            self.get_logger().debug(f"Encoder fixed MA: raw={value}, ma={ma_result:.1f}")
+            self.get_logger().debug(f"Encoder passthrough: raw={value}, published={ma_result:.1f}")
     
     def accel_callback(self, msg):
         """Callback for acceleration (float) stream."""
