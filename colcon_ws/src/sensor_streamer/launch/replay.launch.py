@@ -28,7 +28,7 @@ def generate_launch_description():
     # Replay node
     replay_node = Node(
         package='sensor_streamer',
-        executable='replay',
+        executable='replay.py',
         name='replay_data_node',
         namespace=LaunchConfiguration('namespace'),
         output='screen',

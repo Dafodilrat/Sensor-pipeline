@@ -27,10 +27,13 @@
 class SyntheticDataNode : public rclcpp::Node
 {
 public:
+  /*! Constructor for SyntheticDataNode
+   *  Declare and load all parameters, initialize calculation constants,
+   *  set up Eigen vectors, and create publishers/timers.
+   */
   explicit SyntheticDataNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions())
   : Node("synthetic_sensor_cpp", options)
   {
-    // Declare parameters
     this->declare_parameter<std::vector<double>>("amplitudes", {1.0, 0.5});
     this->declare_parameter<std::vector<double>>("frequencies", {1.0, 2.0});
     this->declare_parameter<std::vector<double>>("phases", {0.0, M_PI/2});
@@ -45,7 +48,6 @@ public:
     this->declare_parameter<double>("encoder.drop_rate", 0.0);
     this->declare_parameter<double>("encoder.jitter_range", 0.0);
 
-    // Load parameters
     amplitudes_ = this->get_parameter("amplitudes").as_double_array();
     frequencies_ = this->get_parameter("frequencies").as_double_array();
     phases_ = this->get_parameter("phases").as_double_array();
@@ -60,17 +62,12 @@ public:
     encoder_drop_rate_ = this->get_parameter("encoder.drop_rate").as_double();
     encoder_jitter_range_ = this->get_parameter("encoder.jitter_range").as_double();
 
-    // Set random seed for repeatable results
     rng_.seed(seed_);
     RCLCPP_INFO(this->get_logger(), "Random seed set to %d for repeatable data generation", seed_);
 
-    // Pre-compute constants for velocity calculation
     two_pi_ = 2.0 * M_PI;
-    
-    // Initialize noise distribution with configured std dev
     noise_dist_ = std::normal_distribution<double>(0.0, imu_noise_std_);
     
-    // Resize arrays to match input
     size_t n = amplitudes_.size();
     A_.resize(n);
     f_.resize(n);
@@ -88,38 +85,31 @@ public:
       two_pi_f_[i] = two_pi_ * f_[i];
     }
     
-    // Set up Eigen vectors for fast matrix operations
     A_cos_phi_eigen_ = Eigen::Map<Eigen::VectorXd>(A_cos_phi_.data(), n);
     A_sin_phi_eigen_ = Eigen::Map<Eigen::VectorXd>(A_sin_phi_.data(), n);
     two_pi_f_eigen_ = Eigen::Map<Eigen::VectorXd>(two_pi_f_.data(), n);
     
-    // Pre-allocate workspace vectors
     angles_.resize(n);
     sines_.resize(n);
     cosines_.resize(n);
 
-    // Pre-check jitter and drop flags
     imu_use_jitter_ = imu_jitter_range_ > 0.0;
     encoder_use_jitter_ = encoder_jitter_range_ > 0.0;
     imu_use_dropout_ = imu_drop_rate_ > 0.0;
     encoder_use_dropout_ = encoder_drop_rate_ > 0.0;
 
-    // Initialize state
     t0_ = this->now();
     imu_prev_time_ = t0_;
     imu_prev_velocity_ = 0.0;
     encoder_prev_time_ = t0_;
     encoder_position_ = 0.0;
 
-    // Create publishers
     encoder_pub_ = this->create_publisher<std_msgs::msg::Int32>("encoder_count", 10);
     imu_pub_ = this->create_publisher<std_msgs::msg::Float32>("accel_x_mss", 10);
 
-    // Pre-allocate message objects
     imu_msg_ = std::make_shared<std_msgs::msg::Float32>();
     encoder_msg_ = std::make_shared<std_msgs::msg::Int32>();
 
-    // Create timers - only if rate > 0
     if (imu_rate_ > 0.0) {
       imu_timer_ = this->create_wall_timer(
         std::chrono::duration<double>(1.0 / imu_rate_),
@@ -133,82 +123,67 @@ public:
   }
 
 private:
+  /*! Publish IMU data with configurable noise, dropout, and jitter */
   void publish_imu()
   {
     auto current_time = this->now();
     double t = (current_time - t0_).seconds();
     double dt = (current_time - imu_prev_time_).seconds();
 
-    // Compute current velocity (analytic)
     double current_vel = velocity(t);
-
-    // Numerical acceleration (using IMU's own previous state)
     double acceleration = (dt > 0.0) ? (current_vel - imu_prev_velocity_) / dt : 0.0;
 
-    // Dropout
     if (imu_use_dropout_ && (drop_dist_(rng_) < imu_drop_rate_)) {
       return;
     }
 
-    // Add noise and publish
     double imu_accel = acceleration + noise_dist_(rng_);
     imu_msg_->data = static_cast<float>(imu_accel);
     imu_pub_->publish(*imu_msg_);
 
-    // Jitter
     if (imu_use_jitter_) {
       std::this_thread::sleep_for(std::chrono::duration<double>(
         jitter_dist_(rng_) * imu_jitter_range_ / imu_rate_));
     }
 
-    // Update IMU state
     imu_prev_velocity_ = current_vel;
     imu_prev_time_ = current_time;
   }
 
+  /*! Publish encoder data with configurable dropout and jitter */
   void publish_encoder()
   {
     auto current_time = this->now();
     double t = (current_time - t0_).seconds();
     double dt = (current_time - encoder_prev_time_).seconds();
 
-    // Compute current velocity (analytic)
     double current_vel = velocity(t);
-
-    // Numerical position integration (using encoder's own previous state)
     encoder_position_ += current_vel * dt;
 
-    // Dropout
     if (encoder_use_dropout_ && (drop_dist_(rng_) < encoder_drop_rate_)) {
       return;
     }
 
-    // Convert and publish
     double rotations = encoder_position_ / wheel_circumference_;
     int32_t encoder_count = static_cast<int32_t>(rotations * counts_per_revolution_);
     encoder_msg_->data = encoder_count;
     encoder_pub_->publish(*encoder_msg_);
 
-    // Jitter
     if (encoder_use_jitter_) {
       std::this_thread::sleep_for(std::chrono::duration<double>(
         jitter_dist_(rng_) * encoder_jitter_range_ / encoder_rate_));
     }
 
-    // Update encoder state
     encoder_prev_time_ = current_time;
   }
 
+  /*! Calculate velocity using Eigen vectorization for fast computation */
   double velocity(double t)
   {
-    // Compute angles using Eigen vectorization (reusing pre-allocated space)
     angles_ = two_pi_f_eigen_ * t;
-    
-    // Compute sin and cos of all angles using Eigen's array operations
     sines_ = angles_.array().sin();
     cosines_ = angles_.array().cos();
     
-    // Compute weighted sum: A_cos_phi_ * sines + A_sin_phi_ * cosines
     return (A_cos_phi_eigen_.array() * sines_.array() + 
             A_sin_phi_eigen_.array() * cosines_.array()).sum();
   }

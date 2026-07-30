@@ -92,7 +92,7 @@ def generate_launch_description():
     # Synthetic sensor node (Python version)
     synthetic_node = Node(
         package='sensor_streamer',
-        executable='synthetic_sensor_node',
+        executable='synthetic_sensor_node.py',
         name='synthetic_sensor',
         namespace=LaunchConfiguration('namespace'),
         output='screen',
