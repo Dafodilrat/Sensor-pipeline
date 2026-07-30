@@ -17,9 +17,6 @@
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
 
-  <!-- Depend on the sensor_streamer package for message types -->
-  <depend>sensor_streamer</depend>
-
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 
