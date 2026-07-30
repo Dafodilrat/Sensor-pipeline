@@ -7,45 +7,28 @@ from std_msgs.msg import Int32, Float32
 import sys
 import os
 
+
 class ReplayDataNode(Node):
     def __init__(self, csv_file):
         super().__init__('replay_data_node')
+        
+        # Declare csv_file parameter
+        self.declare_parameter('csv_file', '')
+        
         self.csv_file = csv_file
 
         # Publishers
         self.encoder_pub = self.create_publisher(Int32, 'encoder_count', 10)
         self.imu_pub = self.create_publisher(Float32, 'accel_x_mss', 10)
-
-        # Load CSV data
-        self.data = self.load_csv()
         
-        # Calculate sensor frequency from timestamps
+        self.data = []
         self.sensor_hz = None
         self.sensor_hz_rounded = None
         self.time_range = None
-        if len(self.data) > 1:
-            timestamps = [point['timestamp'] for point in self.data]
-            self.time_range = timestamps[-1] - timestamps[0]
-            if self.time_range > 0:
-                self.sensor_hz = (len(self.data) - 1) / self.time_range
-                self.sensor_hz_rounded = math.ceil(self.sensor_hz)
-
-        # Log startup info
-        self.get_logger().info(f"Replay started with {len(self.data)} samples from {self.csv_file}")
-        if self.sensor_hz_rounded is not None:
-            self.get_logger().info(f"Average sensor rate: {self.sensor_hz_rounded} Hz (over {self.time_range:.2f} seconds)")
-        else:
-            if len(self.data) <= 1:
-                self.get_logger().warn("Only one data point - cannot calculate frequency")
-            else:
-                self.get_logger().warn("All timestamps are identical - cannot calculate frequency")
-
-        # Start replay
-        self.start_time = time.time()
+        self.start_time = None
         self.index = 0
         self.last_publish_time = 0.0
         self.timer = None
-        self.schedule_next_publish()
 
     def load_csv(self):
         data = []
@@ -93,6 +76,32 @@ class ReplayDataNode(Node):
                 })
         return data
 
+    def init_replay(self):
+        # Calculate sensor frequency from timestamps
+        if len(self.data) > 1:
+            timestamps = [point['timestamp'] for point in self.data]
+            self.time_range = timestamps[-1] - timestamps[0]
+            if self.time_range > 0:
+                self.sensor_hz = (len(self.data) - 1) / self.time_range
+                self.sensor_hz_rounded = math.ceil(self.sensor_hz)
+
+        # Log startup info
+        self.get_logger().info(f"Replay started with {len(self.data)} samples from {self.csv_file}")
+        if self.sensor_hz_rounded is not None:
+            self.get_logger().info(f"Average sensor rate: {self.sensor_hz_rounded} Hz (over {self.time_range:.2f} seconds)")
+        else:
+            if len(self.data) <= 1:
+                self.get_logger().warn("Only one data point - cannot calculate frequency")
+            else:
+                self.get_logger().warn("All timestamps are identical - cannot calculate frequency")
+
+        # Start replay
+        self.start_time = time.time()
+        self.index = 0
+        self.last_publish_time = 0.0
+        self.timer = None
+        self.schedule_next_publish()
+
     def schedule_next_publish(self):
         """Schedule the next publish event based on the next message's timestamp."""
         if self.index >= len(self.data):
@@ -133,38 +142,44 @@ class ReplayDataNode(Node):
         # Schedule the next publish
         self.schedule_next_publish()
 
+
 def main(args=None):
-    # CSV file path is passed as argument
-    # Extract it from sys.argv (ROS2 strips --ros-args but keeps others)
-    csv_file = None
-    
-    # Look for --replay flag
-    if '--replay' in sys.argv:
-        idx = sys.argv.index('--replay')
-        if idx + 1 < len(sys.argv):
-            csv_file = sys.argv[idx + 1]
-    
-    if csv_file is None:
-        print("Error: CSV file path not provided after --replay flag")
-        print("Usage: ros2 run sensor_streamer replay --replay <csv_file_path>")
-        sys.exit(1)
-    
-    # Check if file exists
-    if not os.path.isfile(csv_file):
-        print(f"Error: CSV file not found: {csv_file}")
-        sys.exit(1)
-    
     rclpy.init(args=args)
     
     node = None
     try:
-        # Create node
-        node = ReplayDataNode(csv_file=csv_file)
+        # Create node first, then get csv_file parameter
+        node = ReplayDataNode(csv_file=None)
+        
+        # Get csv_file parameter from node
+        csv_file = node.get_parameter('csv_file').get_parameter_value().string_value
+        
+        if csv_file is None or csv_file == '':
+            node.get_logger().error("CSV file path not provided. Use: --ros-args -p csv_file:=<path>")
+            node.destroy_node()
+            rclpy.shutdown()
+            sys.exit(1)
+        
+        # Check if file exists
+        if not os.path.isfile(csv_file):
+            node.get_logger().error(f"CSV file not found: {csv_file}")
+            node.destroy_node()
+            rclpy.shutdown()
+            sys.exit(1)
+        
+        # Now initialize with the csv file
+        node.csv_file = csv_file
+        node.data = node.load_csv()
+        node.init_replay()
+        
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        print(f"Error loading CSV or running node: {e}")
+        if node is not None:
+            node.get_logger().error(f"Error: {e}")
+        else:
+            print(f"Error: {e}")
         if node is not None:
             node.destroy_node()
         rclpy.shutdown()
@@ -173,6 +188,7 @@ def main(args=None):
         if node is not None:
             node.destroy_node()
         rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()

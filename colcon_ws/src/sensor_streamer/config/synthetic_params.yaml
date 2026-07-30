@@ -8,15 +8,15 @@ synthetic_sensor:
     counts_per_revolution: 4096
     seed: 42  # Random seed for repeatable data generation
 
-    # IMU settings (high rate)
+    # IMU settings (high rate for benchmarking)
     imu:
-      rate: 200.0
-      noise_std: 0.05
-      drop_rate: 0.005
-      jitter_range: 0.1
+      rate: 2000.0
+      noise_std: 0.00
+      drop_rate: 0.000
+      jitter_range: 0.0
 
-    # Encoder settings (lower rate)
+    # Encoder settings (low rate for benchmarking)
     encoder:
-      rate: 50.0
-      drop_rate: 0.01
-      jitter_range: 0.15
+      rate: 1.0
+      drop_rate: 0.00
+      jitter_range: 0.00

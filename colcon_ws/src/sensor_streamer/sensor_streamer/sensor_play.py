@@ -1,25 +1,30 @@
 #!/usr/bin/env python3
 """
-Launcher node that starts either synthetic_sensor or replay based on arguments.
+Launcher script that starts synthetic_sensor or replay based on arguments.
+
+This script checks the arguments and either:
+1. Launches the synthetic_sensor.launch.py with the provided config
+2. Runs the replay node directly with a CSV file
 
 Usage:
-    # Run synthetic sensor node (default)
+    # Run synthetic sensor with default config
     ros2 run sensor_streamer sensor_play
     
     # Run synthetic sensor with custom config
-    ros2 run sensor_streamer sensor_play --config config/synthetic_params.yaml
+    ros2 run sensor_streamer sensor_play --config config/custom_params.yaml
     
-    # Run replay node with CSV file
+    # Run replay with CSV file
     ros2 run sensor_streamer sensor_play --replay sensor_log.csv
 """
 import sys
 import os
-import rclpy
+import subprocess
 
 
-def main(args=None):
-    # Parse arguments before ROS2 initialization
+def main():
+    # Parse arguments
     csv_file = None
+    config_file = None
     
     # Check for --replay flag
     if '--replay' in sys.argv:
@@ -33,7 +38,6 @@ def main(args=None):
         # Check if file exists
         if not os.path.isfile(csv_file):
             print(f"Error: CSV file not found: {csv_file}")
-            print("Usage: ros2 run sensor_streamer sensor_play --replay <csv_file_path>")
             sys.exit(1)
     
     # Check for --config flag (for synthetic sensor)
@@ -48,41 +52,35 @@ def main(args=None):
         # Check if file exists
         if not os.path.isfile(config_file):
             print(f"Error: Config file not found: {config_file}")
-            print("Usage: ros2 run sensor_streamer sensor_play --config <yaml_file_path>")
             sys.exit(1)
-        
-        # Convert --config to --ros-args --params-file for ROS2
-        sys.argv[idx] = '--ros-args'
-        sys.argv[idx + 1] = '--params-file'
-        sys.argv.insert(idx + 2, config_file)
     
-    rclpy.init(args=args)
-    
-    node = None
-    try:
-        if csv_file is not None:
-            # Run replay node
-            from sensor_streamer.replay import ReplayDataNode
-            node = ReplayDataNode(csv_file=csv_file)
-        else:
-            # Default to synthetic sensor
-            from sensor_streamer.generator import SyntheticDataNode
-            node = SyntheticDataNode()
+    # decided what to run
+    if csv_file is not None:
+        # Run replay node directly
+        from sensor_streamer.replay import ReplayDataNode
+        import rclpy
         
-        rclpy.spin(node)
+        rclpy.init()
+        node = ReplayDataNode(csv_file=csv_file)
         
-    except KeyboardInterrupt:
-        pass
-    except Exception as e:
-        print(f"Error: {e}")
-        if node is not None:
+        try:
+            rclpy.spin(node)
+        except KeyboardInterrupt:
+            pass
+        finally:
             node.destroy_node()
-        rclpy.shutdown()
-        sys.exit(1)
-    finally:
-        if node is not None:
-            node.destroy_node()
-        rclpy.shutdown()
+            rclpy.shutdown()
+    else:
+        # Run synthetic sensor via launch file
+        # Build command to launch synthetic_sensor.launch.py
+        cmd = ['ros2', 'launch', 'sensor_streamer', 'synthetic_sensor.launch.py']
+        
+        if config_file is not None:
+            cmd.append(f'config_file:={config_file}')
+        
+        # Execute the launch command
+        print(f"Running: {' '.join(cmd)}")
+        subprocess.run(cmd)
 
 
 if __name__ == '__main__':
