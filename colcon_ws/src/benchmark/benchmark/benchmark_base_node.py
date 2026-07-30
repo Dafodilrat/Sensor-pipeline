@@ -18,6 +18,25 @@ from std_msgs.msg import Float32
 from ament_index_python.packages import get_package_share_directory
 
 
+def get_workspace_root():
+    """
+    Get the root directory of the ROS 2 workspace.
+    
+    This function uses the package share directory to determine the workspace root
+    by finding the path segment before /build, /install, or /src.
+    
+    Returns:
+        str: The absolute path to the workspace root directory.
+    """
+    package_share = get_package_share_directory('benchmark')
+    
+    for marker in ['/install/', '/build/', '/src/']:
+        if marker in package_share:
+            return package_share.split(marker)[0]
+    
+    return os.path.dirname(os.path.dirname(os.path.dirname(package_share)))
+
+
 class FilterStatistics:
     """Statistics structure for benchmarking."""
     
@@ -101,7 +120,7 @@ class BenchmarkBaseNode(Node):
         
         # Setup subscribers
         self.imu_sub = self.create_subscription(
-            Float32, imu_topic, self.filtered_imu_callback, 10)
+            Float32, imu_topic, self.filtered_imu_callback, 10000)
         
         # Setup test timer
         self.test_timer = self.create_timer(
@@ -156,11 +175,8 @@ class BenchmarkBaseNode(Node):
 
     def write_stats_to_file(self):
         """Write statistics to JSON files."""
-        # Get results directory
-        results_dir = os.path.join(
-            get_package_share_directory('benchmark'), 
-            'results'
-        )
+        # Get results directory in workspace root
+        results_dir = os.path.join(get_workspace_root(), 'results')
         os.makedirs(results_dir, exist_ok=True)
         
         timestamp = time.strftime("%Y%m%d_%H%M%S")

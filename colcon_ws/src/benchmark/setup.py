@@ -8,7 +8,7 @@ setup(
     packages=[package_name],
     data_files=[
         ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/config', ['config/benchmark_params.yaml']),
+        ('share/' + package_name + '/config', ['config/benchmark_params.yaml', 'config/synthetic_params.yaml']),
         ('share/' + package_name + '/launch', ['launch/base_sensor_launch.py', 'launch/benchmark_low_pass.launch.py', 'launch/benchmark_mean_filter.launch.py']),
     ],
     install_requires=['setuptools'],

@@ -35,59 +35,43 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     
     # ========================================================================
-    # LAUNCH ARGUMENTS - Only declare arguments specific to THIS launch file
-    # Sensor arguments are handled by the included base_sensor_launch.py
+    # LAUNCH ARGUMENTS - Benchmark-specific arguments only
+    # Sensor arguments are inherited from base_sensor_launch.py
     # ========================================================================
     
-    # Default parameter values from benchmark_params.yaml
-    # These will be used if not overridden via command line
-    yaml_defaults = {
-        'lp_cutoff_hz': '10.0',
-        'timeout_seconds': '5.0',
-        'test_duration': '30.0',
-        'warmup_duration': '2.0',
-        'max_acceptable_latency_us': '1000',
-        'stats_interval': '1.0',
-        'imu_rate': '200.0',
-        'encoder_rate': '50.0',
-    }
+    # Path to the combined benchmark config file (contains all parameters)
+    benchmark_config_path = PathJoinSubstitution([
+        FindPackageShare('benchmark'),
+        'config',
+        'benchmark_params.yaml'
+    ])
     
     launch_args = [
-        # Path to the combined benchmark config file (contains all parameters)
         DeclareLaunchArgument('benchmark_config',
-                             default_value=PathJoinSubstitution([
-                                 FindPackageShare('benchmark'),
-                                 'config',
-                                 'benchmark_params.yaml'
-                             ]),
+                             default_value=benchmark_config_path,
                              description='Path to combined benchmark config file'),
         
-        # Parameters that can be overridden via command line
-        # Defaults match values in benchmark_params.yaml
+        # Filter-specific parameters
         DeclareLaunchArgument('lp_cutoff_hz',
-                           default_value=yaml_defaults['lp_cutoff_hz'],
-                           description='Override lp_node.lp_cutoff_hz from config'),
+                           default_value='10.0',
+                           description='Low-pass filter cutoff frequency in Hz'),
         DeclareLaunchArgument('timeout_seconds',
-                           default_value=yaml_defaults['timeout_seconds'],
-                           description='Override lp_node.timeout_seconds from config'),
+                           default_value='5.0',
+                           description='Low-pass filter timeout in seconds'),
+        
+        # Benchmark-specific parameters
         DeclareLaunchArgument('test_duration',
-                           default_value=yaml_defaults['test_duration'],
-                           description='Override benchmark.test_duration from config'),
+                           default_value='30.0',
+                           description='Benchmark test duration in seconds'),
         DeclareLaunchArgument('warmup_duration',
-                           default_value=yaml_defaults['warmup_duration'],
-                           description='Override benchmark.warmup_duration from config'),
+                           default_value='2.0',
+                           description='Benchmark warmup duration in seconds'),
         DeclareLaunchArgument('max_acceptable_latency_us',
-                           default_value=yaml_defaults['max_acceptable_latency_us'],
-                           description='Override benchmark.max_acceptable_latency_us from config'),
+                           default_value='1000',
+                           description='Maximum acceptable latency in microseconds'),
         DeclareLaunchArgument('stats_interval',
-                           default_value=yaml_defaults['stats_interval'],
-                           description='Override output.stats_interval from config'),
-        DeclareLaunchArgument('imu_rate',
-                           default_value=yaml_defaults['imu_rate'],
-                           description='Override synthetic_sensor.imu.rate from config'),
-        DeclareLaunchArgument('encoder_rate',
-                           default_value=yaml_defaults['encoder_rate'],
-                           description='Override synthetic_sensor.encoder.rate from config'),
+                           default_value='1.0',
+                           description='Statistics publishing interval in seconds'),
     ]
     
     # ========================================================================
@@ -132,7 +116,9 @@ def generate_launch_description():
             name='lp_benchmark_node', 
             output='screen',
             parameters=[
-                # Test configuration - these override values from the config file
+                # Load the combined config file first - ROS2 will only use benchmark parameters
+                LaunchConfiguration('benchmark_config'),
+                # Override with launch-time values (these take precedence)
                 {'benchmark.test_duration': LaunchConfiguration('test_duration')},
                 {'benchmark.warmup_duration': LaunchConfiguration('warmup_duration')},
                 {'benchmark.max_acceptable_latency_us': LaunchConfiguration('max_acceptable_latency_us')},
@@ -140,9 +126,6 @@ def generate_launch_description():
                 {'benchmark.expected_encoder_rate': LaunchConfiguration('encoder_rate')},
                 {'benchmark.measure_latency': True},
                 {'output.log_level': 'INFO'},
-                
-                # Load the combined config file - ROS2 will only use benchmark parameters
-                LaunchConfiguration('benchmark_config')
             ]
         ),
         

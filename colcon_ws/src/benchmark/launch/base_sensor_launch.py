@@ -2,98 +2,88 @@
 """
 Base Launch file for sensor data generation.
 
-This launch file provides the synthetic data generator with default parameters.
-Child launch files can include this and override parameters as needed.
-
-All sensor-related parameters are declared here with defaults.
+This launch file includes the synthetic_sensor.launch.py from sensor_streamer
+package and uses benchmark's synthetic_params.yaml config file.
 """
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
     
-    # Default values from benchmark_params.yaml synthetic_sensor section
-    yaml_defaults = {
-        'seed': '42',
-        'imu_rate': '200.0',
-        'imu_noise_std': '0.05',
-        'imu_drop_rate': '0.0',
-        'imu_jitter_range': '0.0',
-        'encoder_rate': '50.0',
-        'encoder_drop_rate': '0.01',
-        'encoder_jitter_range': '0.15',
-    }
+    # Path to benchmark's synthetic sensor config file
+    sensor_config_path = PathJoinSubstitution([
+        FindPackageShare('benchmark'),
+        'config',
+        'synthetic_params.yaml'
+    ])
     
-    # Sensor-specific launch arguments - allow overrides from command line
-    # Defaults come from benchmark_params.yaml
+    # Path to sensor_streamer's synthetic sensor launch file
+    sensor_launch_path = PathJoinSubstitution([
+        FindPackageShare('sensor_streamer'),
+        'launch',
+        'synthetic_sensor.launch.py'
+    ])
+    
+    # Launch arguments - these override values from benchmark/config/synthetic_params.yaml
     launch_args = [
         DeclareLaunchArgument('namespace', default_value='',
                            description='ROS namespace for sensor topics'),
-        
-        # These parameters can be overridden at launch time
-        # Defaults are in benchmark_params.yaml under synthetic_sensor section
-        DeclareLaunchArgument('seed',
-                           default_value=yaml_defaults['seed'],
-                           description='Random seed for repeatable data generation (default: 42)'),
-        DeclareLaunchArgument('imu_rate',
-                           default_value=yaml_defaults['imu_rate'],
-                           description='IMU publish rate in Hz (from benchmark_params.yaml)'),
-        DeclareLaunchArgument('imu_noise_std',
-                           default_value=yaml_defaults['imu_noise_std'],
-                           description='IMU noise standard deviation (from benchmark_params.yaml)'),
-        DeclareLaunchArgument('imu_drop_rate',
-                           default_value=yaml_defaults['imu_drop_rate'],
-                           description='IMU message drop rate (from benchmark_params.yaml)'),
-        DeclareLaunchArgument('imu_jitter_range',
-                           default_value=yaml_defaults['imu_jitter_range'],
-                           description='IMU timing jitter as fraction of period (from benchmark_params.yaml)'),
-        DeclareLaunchArgument('encoder_rate',
-                           default_value=yaml_defaults['encoder_rate'],
-                           description='Encoder publish rate in Hz (from benchmark_params.yaml)'),
-        DeclareLaunchArgument('encoder_drop_rate',
-                           default_value=yaml_defaults['encoder_drop_rate'],
-                           description='Encoder message drop rate (from benchmark_params.yaml)'),
-        DeclareLaunchArgument('encoder_jitter_range',
-                           default_value=yaml_defaults['encoder_jitter_range'],
-                           description='Encoder timing jitter as fraction of period (from benchmark_params.yaml)'),
+        DeclareLaunchArgument('seed', default_value='42',
+                           description='Random seed for repeatable data generation'),
+        DeclareLaunchArgument('amplitudes', default_value='[1.0, 0.3, 0.1]',
+                           description='Motion signal amplitudes'),
+        DeclareLaunchArgument('frequencies', default_value='[0.5, 1.5, 3.0]',
+                           description='Motion signal frequencies'),
+        DeclareLaunchArgument('phases', default_value='[0.0, 0.0, 0.0]',
+                           description='Motion signal phases'),
+        DeclareLaunchArgument('wheel_circumference', default_value='0.203',
+                           description='Wheel circumference in meters'),
+        DeclareLaunchArgument('counts_per_revolution', default_value='4096',
+                           description='Encoder counts per revolution'),
+        DeclareLaunchArgument('imu_rate', default_value='2000.0',
+                           description='IMU publish rate in Hz'),
+        DeclareLaunchArgument('imu_noise_std', default_value='0.00',
+                           description='IMU noise standard deviation'),
+        DeclareLaunchArgument('imu_drop_rate', default_value='0.000',
+                           description='IMU message drop rate'),
+        DeclareLaunchArgument('imu_jitter_range', default_value='0.0',
+                           description='IMU timing jitter as fraction of period'),
+        DeclareLaunchArgument('encoder_rate', default_value='1.0',
+                           description='Encoder publish rate in Hz'),
+        DeclareLaunchArgument('encoder_drop_rate', default_value='0.00',
+                           description='Encoder message drop rate'),
+        DeclareLaunchArgument('encoder_jitter_range', default_value='0.00',
+                           description='Encoder timing jitter as fraction of period'),
     ]
     
-    # Path to the combined benchmark config file
-    benchmark_config_path = PathJoinSubstitution([
-        FindPackageShare('benchmark'),
-        'config',
-        'benchmark_params.yaml'
-    ])
-    
-    # Synthetic data generator node
-    synthetic_node = Node(
-        package='sensor_streamer',
-        executable='synthetic_sensor',
-        name='synthetic_sensor',
-        output='screen',
-        namespace=LaunchConfiguration('namespace'),
-        parameters=[
-            # Load from the combined benchmark config file
-            # ROS2 will automatically use only the synthetic_sensor.ros__parameters section
-            benchmark_config_path,
-            # Allow launch-time overrides of specific parameters (these take precedence)
-            {'seed': LaunchConfiguration('seed')},
-            {'imu.rate': LaunchConfiguration('imu_rate')},
-            {'imu.noise_std': LaunchConfiguration('imu_noise_std')},
-            {'imu.drop_rate': LaunchConfiguration('imu_drop_rate')},
-            {'imu.jitter_range': LaunchConfiguration('imu_jitter_range')},
-            {'encoder.rate': LaunchConfiguration('encoder_rate')},
-            {'encoder.drop_rate': LaunchConfiguration('encoder_drop_rate')},
-            {'encoder.jitter_range': LaunchConfiguration('encoder_jitter_range')},
-        ]
+    # Include the sensor_streamer launch file with config file and parameter overrides
+    sensor_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(sensor_launch_path),
+        launch_arguments={
+            'namespace': LaunchConfiguration('namespace'),
+            'config_file': sensor_config_path,
+            'seed': LaunchConfiguration('seed'),
+            'amplitudes': LaunchConfiguration('amplitudes'),
+            'frequencies': LaunchConfiguration('frequencies'),
+            'phases': LaunchConfiguration('phases'),
+            'wheel_circumference': LaunchConfiguration('wheel_circumference'),
+            'counts_per_revolution': LaunchConfiguration('counts_per_revolution'),
+            'imu_rate': LaunchConfiguration('imu_rate'),
+            'imu_noise_std': LaunchConfiguration('imu_noise_std'),
+            'imu_drop_rate': LaunchConfiguration('imu_drop_rate'),
+            'imu_jitter_range': LaunchConfiguration('imu_jitter_range'),
+            'encoder_rate': LaunchConfiguration('encoder_rate'),
+            'encoder_drop_rate': LaunchConfiguration('encoder_drop_rate'),
+            'encoder_jitter_range': LaunchConfiguration('encoder_jitter_range'),
+        }.items()
     )
     
     return LaunchDescription([
         *launch_args,
-        synthetic_node,
+        sensor_launch,
     ])
