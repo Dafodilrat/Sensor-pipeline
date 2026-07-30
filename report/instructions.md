@@ -24,32 +24,85 @@ source /workspace/colcon_ws/install/setup.bash
 
 ```bash
 # Replay sensor_log.csv with original timestamps (preserves jitter and dropouts)
-ros2 run sensor_streamer sensor_play --replay sensor_log.csv
+ros2 launch sensor_streamer replay.launch.py csv:=sensor_log.csv
 ```
 
 ### Replay with Custom CSV File
 
 ```bash
 # Replay from a custom CSV file path
-ros2 run sensor_streamer sensor_play --replay /path/to/your/sensor_data.csv
+ros2 launch sensor_streamer replay.launch.py csv:=/path/to/your/sensor_data.csv
 ```
 
 ### Synthetic Data Generation (Alternative to Replay)
 
 ```bash
 # Generate synthetic data using default configuration
-ros2 run sensor_streamer sensor_play
+ros2 launch sensor_streamer synthetic_sensor.launch.py
 
 # Use custom YAML configuration
-ros2 run sensor_streamer sensor_play --config config/synthetic_params.yaml
+ros2 launch sensor_streamer synthetic_sensor.launch.py config_file:=config/synthetic_params.yaml
+
+# Override specific parameters
+ros2 launch sensor_streamer synthetic_sensor.launch.py imu_rate:=500.0 encoder_rate:=10.0
 ```
 
-### Replay Command-line Arguments
+#### Example YAML Configuration
 
+Here is an example YAML configuration file format for the synthetic sensor. You can create your own file and pass it with `--config`:
+
+```yaml
+synthetic_sensor:
+  ros__parameters:
+    # Shared motion parameters (supports any number of elements)
+    amplitudes:
+      - 1.0
+      - 0.3
+      - 0.1
+    frequencies:
+      - 0.5
+      - 1.5
+      - 3.0
+    phases:
+      - 0.0
+      - 0.0
+      - 0.0
+    wheel_circumference: 0.203
+    counts_per_revolution: 4096
+    seed: 42
+
+    # IMU settings
+    imu:
+      rate: 2000.0
+      noise_std: 0.00
+      drop_rate: 0.000
+      jitter_range: 0.0
+
+    # Encoder settings
+    encoder:
+      rate: 1.0
+      drop_rate: 0.00
+      jitter_range: 0.00
+```
+
+**Note:** The `synthetic_sensor: ros__parameters:` wrapper is required for ROS 2 parameter file compatibility.
+
+### Launch File Arguments
+
+#### Replay Launch (`replay.launch.py`)
 | Argument | Type | Default | Description |
 |----------|------|---------|-------------|
-| `--replay` | str | None | Path to CSV file for replay mode |
-| `--config` | str | `config/synthetic_params.yaml` | Path to YAML config file for synthetic mode |
+| `csv` | str | *required* | Path to CSV file for replay |
+| `namespace` | str | `''` | ROS namespace for sensor topics |
+
+#### Synthetic Sensor Launch (`synthetic_sensor.launch.py`)
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `config_file` | str | `config/synthetic_params.yaml` | Path to YAML config file |
+| `namespace` | str | `''` | ROS namespace for sensor topics |
+| `seed` | int | `42` | Random seed for repeatable data |
+| `imu_rate` | float | `2000.0` | IMU publish rate in Hz |
+| `encoder_rate` | float | `1.0` | Encoder publish rate in Hz |
 
 ### Published Topics (Replay Mode)
 - `/encoder_count` (std_msgs/Int32) - Encoder counts from wheel rotation
@@ -75,9 +128,6 @@ ros2 run signal_processing_cpp time_ma_node --ros-args -p ma_window_size:=32 -p 
 
 #### C++ Low-Pass Filter
 ```bash
-# Low-pass filter with 7.0 Hz cutoff, default timeout (10.0s)
-ros2 run signal_processing_cpp lp_node --ros-args -p lp_cutoff_hz:=7.0
-
 # Low-pass filter with 7.0 Hz cutoff, 150ms timeout
 ros2 run signal_processing_cpp lp_node --ros-args -p lp_cutoff_hz:=7.0 -p timeout_seconds:=0.15
 ```
@@ -104,63 +154,7 @@ ros2 run signal_processing_py time_ma_node --ros-args -p ma_window_size:=32 -p m
 
 ---
 
-## 3. Complete Pipeline Execution Commands
-
-### Pipeline with Real Data Replay (Benchmark Configuration)
-
-This configuration matches the data analysis in the report and uses the ~150ms dropout gap data:
-
-```bash
-# Terminal 1: Replay publisher (uses original sensor_log.csv)
-ros2 run sensor_streamer sensor_play --replay sensor_log.csv
-
-# Terminal 2: C++ Low-Pass Processing with 7.0 Hz cutoff
-ros2 run signal_processing_cpp lp_node --ros-args -p lp_cutoff_hz:=7.0 -p timeout_seconds:=0.15
-
-# Terminal 3: C++ Fixed Moving Average Processing with 32 samples
-ros2 run signal_processing_cpp fixed_ma_node --ros-args -p ma_window_size:=32 -p timeout_seconds:=0.15
-
-# Terminal 4: C++ Time-Duration Moving Average Processing with 500ms window
-ros2 run signal_processing_cpp time_ma_node --ros-args -p ma_window_size:=32 -p ma_window_duration_ms:=500.0 -p timeout_seconds:=0.15
-
-# Terminal 5: Python Low-Pass Processing with 7.0 Hz cutoff
-ros2 run signal_processing_py lp_node --ros-args -p lp_cutoff_hz:=7.0 -p timeout_seconds:=0.15
-
-# Terminal 6: Python Fixed Moving Average with 32 samples
-ros2 run signal_processing_py fixed_ma_node --ros-args -p ma_window_size:=32 -p timeout_seconds:=0.15
-
-# Terminal 7: Python Time-Duration Moving Average with 500ms window
-ros2 run signal_processing_py time_ma_node --ros-args -p ma_window_size:=32 -p ma_window_duration_ms:=500.0 -p timeout_seconds:=0.15
-```
-
-### Full Pipeline with Synthetic Data
-
-```bash
-# Terminal 1: Synthetic publisher with custom configuration
-ros2 run sensor_streamer sensor_play --config config/synthetic_params.yaml
-
-# Terminal 2: C++ Low-Pass Filter
-ros2 run signal_processing_cpp lp_node --ros-args -p lp_cutoff_hz:=7.0 -p timeout_seconds:=0.15
-
-# Terminal 3: C++ Fixed Moving Average Filter
-ros2 run signal_processing_cpp fixed_ma_node --ros-args -p ma_window_size:=32 -p timeout_seconds:=0.15
-
-# Terminal 4: C++ Time-Duration Moving Average Filter
-ros2 run signal_processing_cpp time_ma_node --ros-args -p ma_window_size:=32 -p ma_window_duration_ms:=500.0 -p timeout_seconds:=0.15
-
-# Terminal 5: Python Low-Pass Filter
-ros2 run signal_processing_py lp_node --ros-args -p lp_cutoff_hz:=7.0 -p timeout_seconds:=0.15
-
-# Terminal 6: Python Fixed Moving Average
-ros2 run signal_processing_py fixed_ma_node --ros-args -p ma_window_size:=32 -p timeout_seconds:=0.15
-
-# Terminal 7: Python Time-Duration Moving Average
-ros2 run signal_processing_py time_ma_node --ros-args -p ma_window_size:=32 -p ma_window_duration_ms:=500.0 -p timeout_seconds:=0.15
-```
-
----
-
-## 4. Benchmark Commands
+## 3. Benchmark Commands
 
 ### Running Benchmarks with Launch Files (Recommended)
 
@@ -168,18 +162,6 @@ Use the provided launch files for complete benchmark setups:
 
 #### Low-Pass Filter Benchmark
 ```bash
-# Run low-pass filter benchmark with all dependencies
-ros2 launch benchmark benchmark_low_pass.launch.py
-
-# Run low-pass filter benchmark with custom cutoff frequency
-ros2 launch benchmark benchmark_low_pass.launch.py lp_cutoff_hz:=5.0
-
-# Run low-pass filter benchmark with custom duration
-ros2 launch benchmark benchmark_low_pass.launch.py test_duration:=60.0
-
-# Run low-pass filter benchmark with custom IMU rate
-ros2 launch benchmark benchmark_low_pass.launch.py imu_rate:=200.0
-
 # Run low-pass filter benchmark with all custom parameters
 ros2 launch benchmark benchmark_low_pass.launch.py \
     lp_cutoff_hz:=7.0 \
@@ -191,15 +173,6 @@ ros2 launch benchmark benchmark_low_pass.launch.py \
 
 #### Mean Filter Benchmark
 ```bash
-# Run mean filter benchmark with all dependencies
-ros2 launch benchmark benchmark_mean_filter.launch.py
-
-# Run mean filter benchmark with custom window size
-ros2 launch benchmark benchmark_mean_filter.launch.py ma_window_size:=50
-
-# Run mean filter benchmark with custom IMU rate
-ros2 launch benchmark benchmark_mean_filter.launch.py imu_rate:=200.0
-
 # Run mean filter benchmark with all custom parameters
 ros2 launch benchmark benchmark_mean_filter.launch.py \
     ma_window_size:=32 \
@@ -207,38 +180,13 @@ ros2 launch benchmark benchmark_mean_filter.launch.py \
     test_duration:=30.0 \
     warmup_duration:=2.0 \
     imu_rate:=200.0 \
-    encoder_rate:=50.0
 ```
 
-### Running Individual Node Benchmarks
-
-The benchmark nodes are designed to test performance with specific parameters:
-
-```bash
-# Run fixed moving average benchmark at 200 Hz
-# Note: Use the benchmark package if available
-ros2 run benchmark benchmark_node --ros-args -p filter_type:=fixed_ma -p expected_rate:=200.0 -p test_duration:=10.0 -p measure_latency:=true
-```
-
-### Manual Benchmarking with Replay Data
-
-For manual benchmarking using the sensor replay:
-
-```bash
-# Terminal 1: Start replay at known rate
-ros2 run sensor_streamer sensor_play --replay sensor_log.csv
-
-# Terminal 2: Start the node to benchmark (example: fixed moving average)
-ros2 run signal_processing_cpp fixed_ma_node --ros-args -p ma_window_size:=32 -p timeout_seconds:=0.15
-
-# Terminal 3: Monitor performance (use ROS 2 tools)
-ros2 topic hz /accel_x_mss
-ros2 topic hz /fixed_ma_accel
-```
+> **Note:** Results are stored under the results directory at the root of the ROS workspace.
 
 ---
 
-## 5. Verification Commands
+## 4. Verification Commands
 
 ### Check Topic List
 ```bash
@@ -263,23 +211,11 @@ ros2 topic echo /fixed_ma_accel
 # C++ time-duration moving average outputs
 ros2 topic echo /time_ma_encoder
 ros2 topic echo /time_ma_accel
-
-# Python fixed moving average outputs  
-ros2 topic echo /fixed_ma_encoder
-ros2 topic echo /fixed_ma_accel
-
-# Python time-duration moving average outputs
-ros2 topic echo /time_ma_encoder
-ros2 topic echo /time_ma_accel
 ```
 
 #### Low-Pass Filter Outputs
 ```bash
 # C++ low-pass filter outputs
-ros2 topic echo /lp_encoder
-ros2 topic echo /lp_accel
-
-# Python low-pass filter outputs
 ros2 topic echo /lp_encoder
 ros2 topic echo /lp_accel
 ```
@@ -295,75 +231,13 @@ ros2 topic hz /fixed_ma_encoder
 ros2 topic hz /fixed_ma_accel
 ros2 topic hz /time_ma_encoder
 ros2 topic hz /time_ma_accel
-ros2 topic hz /lp_encoder  
+ros2 topic hz /lp_encoder
 ros2 topic hz /lp_accel
 ```
 
 ---
 
-## 6. Dense Pipeline Commands (All Nodes Together)
-
-### Complete Benchmark Pipeline (7 Terminals)
-
-```bash
-# Terminal 1: Data source
-ros2 run sensor_streamer sensor_play --replay sensor_log.csv
-
-# Terminal 2: C++ Low-Pass Filter
-ros2 run signal_processing_cpp lp_node --ros-args -p lp_cutoff_hz:=7.0 -p timeout_seconds:=0.15
-
-# Terminal 3: C++ Fixed Moving Average Filter  
-ros2 run signal_processing_cpp fixed_ma_node --ros-args -p ma_window_size:=32 -p timeout_seconds:=0.15
-
-# Terminal 4: C++ Time-Duration Moving Average Filter
-ros2 run signal_processing_cpp time_ma_node --ros-args -p ma_window_size:=32 -p ma_window_duration_ms:=500.0 -p timeout_seconds:=0.15
-
-# Terminal 5: Python Low-Pass Filter
-ros2 run signal_processing_py lp_node --ros-args -p lp_cutoff_hz:=7.0 -p timeout_seconds:=0.15
-
-# Terminal 6: Python Fixed Moving Average
-ros2 run signal_processing_py fixed_ma_node --ros-args -p ma_window_size:=32 -p timeout_seconds:=0.15
-
-# Terminal 7: Python Time-Duration Moving Average
-ros2 run signal_processing_py time_ma_node --ros-args -p ma_window_size:=32 -p ma_window_duration_ms:=500.0 -p timeout_seconds:=0.15
-```
-
----
-
-## 7. Quick Start Scripts
-
-### Save as `run_benchmark.sh`
-```bash
-#!/bin/bash
-# Quick script to start the benchmark pipeline
-
-# Start replay in background
-ros2 run sensor_streamer sensor_play --replay sensor_log.csv &
-REPLAY_PID=$!
-
-# Give replay time to start
-sleep 2
-
-# Start processing nodes
-ros2 run signal_processing_cpp lp_node --ros-args -p lp_cutoff_hz:=7.0 -p timeout_seconds:=0.15 &
-ros2 run signal_processing_cpp fixed_ma_node --ros-args -p ma_window_size:=32 -p timeout_seconds:=0.15 &
-ros2 run signal_processing_cpp time_ma_node --ros-args -p ma_window_size:=32 -p ma_window_duration_ms:=500.0 -p timeout_seconds:=0.15 &
-ros2 run signal_processing_py lp_node --ros-args -p lp_cutoff_hz:=7.0 -p timeout_seconds:=0.15 &
-
-# Monitor topics
-ros2 topic list
-ros2 topic hz /accel_x_mss
-ros2 topic hz /fixed_ma_accel
-ros2 topic hz /time_ma_accel
-ros2 topic hz /lp_accel
-
-# Cleanup on exit
-kill $REPLAY_PID
-```
-
----
-
-## 8. Topic Name Reference
+## 5. Topic Name Reference
 
 ### Input Topics (Published by sensor_streamer)
 | Topic | Type | Description |
@@ -389,9 +263,9 @@ kill $REPLAY_PID
 
 ---
 
-## 9. Common Issues and Fixes
+## 6. Common Issues and Fixes
 
-###ROS 2 Environment Not Sourced
+### ROS 2 Environment Not Sourced
 ```bash
 source /opt/ros/jazzy/setup.bash
 source /workspace/colcon_ws/install/setup.bash
@@ -421,7 +295,7 @@ ros2 topic list
 
 ---
 
-## Configuration Summary
+## 7. Configuration Summary
 
 - **Sample Rate**: 200 Hz (for IMU data in sensor_log.csv)
 - **Timeout**: 150ms (0.15 seconds) - matches dropout gap in data
