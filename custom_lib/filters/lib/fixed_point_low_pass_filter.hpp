@@ -46,28 +46,18 @@ private:
     bool clamp_warning_ = false;  // Set to true when clamping occurs
     bool verbose_warnings_ = false;  // Enable console warnings for clamping/saturation
     
-    // Saturating conversion from T to FixedType
-    // Sets clamp_warning_ to true when clamping occurs
+    /*! Convert from T to FixedType with clamping detection
+     *  Sets clamp_warning_ to true when clamping occurs.
+     *  Calculates max/min representable values and clamps input to this range.
+     */
     FixedType to_q(T value) {
-        // For most Q-formats, we can use numeric_limits to get the range
-        // The representable range for Qm.n format is:
-        // max = (2^(m-1)) - 1 / 2^n  (positive)
-        // min = -(2^(m-1)) / 2^n     (negative)
-        // where m = sizeof(T)*8 - FractionalBits
-        
         constexpr int total_bits = sizeof(T) * 8;
         constexpr int integral_bits = total_bits - FractionalBits;
         
         if (integral_bits <= 0) {
-            // No integral bits - can only represent values very close to 0
-            // This shouldn't happen with valid configurations
             return FixedType(value);
         }
         
-        // Calculate max and min representable values
-        // max = (2^(integral_bits) - 1) / (2^FractionalBits)
-        // But we need to represent this in the same units as T
-        // So we scale up: max_raw = (2^total_bits - 1) >> FractionalBits
         CalcT max_raw = (static_cast<CalcT>(1) << (total_bits - 1)) - 1;
         max_raw = max_raw >> FractionalBits;
         
@@ -77,7 +67,6 @@ private:
         T max_val = static_cast<T>(max_raw);
         T min_val = static_cast<T>(min_raw);
         
-        // Clamp the input value to the representable range
         if (value > max_val) {
             clamp_warning_ = true;
             if (verbose_warnings_) {
@@ -99,28 +88,25 @@ private:
         return FixedType(value);
     }
     
-    // Compute alpha in Q-format from dt (in seconds as Q16.16)
+    /*! Compute alpha in Q-format from dt (in seconds as Q16.16)
+     *  Implements: alpha = dt / (rc + dt) with proper Q-format conversion
+     */
     FixedType compute_alpha_q(TimeFixedType dt_q) const {
         if (dt_q <= TimeFixedType(0)) return FixedType(0);
         
         // Check for very large dt (filter follows input immediately)
         if (dt_q > rc_q_ * TimeFixedType(4)) return FixedType(1);
         
-        // alpha = dt / (rc + dt)
         TimeFixedType numerator = dt_q;
         TimeFixedType denominator = rc_q_ + dt_q;
         
-        // Convert Q16.16 division to FixedType's Q-format
-        // We do the division in Higher precision then convert
         CalcT num_raw = static_cast<CalcT>(numerator.raw_value());
         CalcT den_raw = static_cast<CalcT>(denominator.raw_value());
         
-        // Divide with extra precision, then convert to FixedType's Q-format
         // alpha_raw in Q(16+16).16 = (numerator_q16.16 << 16) / denominator_q16.16
         CalcT alpha_raw = (num_raw << 16) / den_raw;
         
         // Convert from Q32.16 to FixedType's Q-format
-        // Need to handle different cases based on fractional bits
         if (FractionalBits < 16) {
             // Scale up: Q32.16 -> Q-format with fewer fractional bits
             CalcT alpha_final = alpha_raw << (16 - FractionalBits);
@@ -135,7 +121,7 @@ private:
         }
     }
     
-    // Convert duration to Q16.16 fixed-point seconds
+    /*! Convert duration to Q16.16 fixed-point seconds */
     static TimeFixedType duration_to_q(std::chrono::nanoseconds ns) {
         // Convert nanoseconds to seconds in Q16.16 format
         // 1 second = 2^16 in Q16.16
