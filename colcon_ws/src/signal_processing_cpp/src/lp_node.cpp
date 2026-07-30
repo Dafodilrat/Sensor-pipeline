@@ -30,16 +30,17 @@ using namespace std::chrono_literals;
 
 class LPNode : public rclcpp::Node {
 public:
+    /*! Constructor for LPNode
+     *  Initialize parameters, create low-pass filter, set up subscribers and publishers
+     */
     LPNode()
         : Node("lp_node")
     {
-        // Declare parameters with defaults
         this->declare_parameter<float>("lp_cutoff_hz", 10.0f);
         this->declare_parameter<float>("timeout_seconds", 10.0f);
 
-        // Get parameter values
-        float lp_cutoff_hz = this->get_parameter("lp_cutoff_hz").as_float();
-        float timeout_seconds = this->get_parameter("timeout_seconds").as_float();
+        float lp_cutoff_hz = this->get_parameter("lp_cutoff_hz").get_value<float>();
+        float timeout_seconds = this->get_parameter("timeout_seconds").get_value<float>();
 
         RCLCPP_INFO(this->get_logger(), 
                    "LP Parameters: cutoff=%.1fHz, timeout=%.3fs",
@@ -53,7 +54,6 @@ public:
         RCLCPP_INFO(this->get_logger(), "  Accel LP: LowPassFilterFloat");
         RCLCPP_INFO(this->get_logger(), "  Encoder: passthrough (no filtering)");
 
-        // Create subscribers
         encoder_sub_ = this->create_subscription<std_msgs::msg::Int32>(
             "encoder_count", 10, 
             [this](const std_msgs::msg::Int32::SharedPtr msg) {
@@ -66,7 +66,6 @@ public:
                 this->accel_callback(msg);
             });
 
-        // Create publishers
         lp_encoder_pub_ = this->create_publisher<std_msgs::msg::Int32>("lp_encoder", 10);
         lp_accel_pub_ = this->create_publisher<std_msgs::msg::Float32>("lp_accel", 10);
 
@@ -76,37 +75,33 @@ public:
     }
 
 private:
+    /*! Handle encoder data - passthrough without filtering */
     void encoder_callback(const std_msgs::msg::Int32::SharedPtr msg) {
         auto current_time = this->now();
         int32_t value = msg->data;
         
-        // Calculate dt if we have a previous timestamp
         double dt = (current_time - last_encoder_time_).seconds();
         last_encoder_time_ = current_time;
         
-        // Pass through raw value without filtering for encoder motor topic
         int32_t lp_result = value;
         
-        // Increment counter
         encoder_update_count_++;
         
-        // Publish raw value to lp_encoder topic
         auto lp_msg = std_msgs::msg::Int32();
         lp_msg.data = lp_result;
         lp_encoder_pub_->publish(lp_msg);
         
-        // Log occasionally
         if (encoder_update_count_ % 10 == 0) {
             RCLCPP_DEBUG(this->get_logger(), "Encoder passthrough: raw=%d, published=%d, dt=%.3fs",
                          value, lp_result, dt);
         }
     }
 
+    /*! Handle accel data - apply low-pass filter */
     void accel_callback(const std_msgs::msg::Float32::SharedPtr msg) {
         auto current_time = this->now();
         float value = msg->data;
         
-        // Calculate dt if we have a previous timestamp
         double dt = (current_time - last_accel_time_).seconds();
         last_accel_time_ = current_time;
         
@@ -114,15 +109,12 @@ private:
         // Using update() without timestamp - uses system clock internally
         float lp_result = lp_accel_->update(value);
         
-        // Increment counter
         accel_update_count_++;
         
-        // Publish results
         auto lp_msg = std_msgs::msg::Float32();
         lp_msg.data = lp_result;
         lp_accel_pub_->publish(lp_msg);
         
-        // Log occasionally
         if (accel_update_count_ % 10 == 0) {
             RCLCPP_DEBUG(this->get_logger(), "Accel LP: raw=%.3f, lp=%.3f, dt=%.3fs",
                          value, lp_result, dt);
