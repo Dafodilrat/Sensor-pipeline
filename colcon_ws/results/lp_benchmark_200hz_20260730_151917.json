@@ -1,0 +1,23 @@
+{
+  "filter_type": "LOW-PASS FILTER",
+  "sensor_type": "imu",
+  "timestamp": "20260730_151917",
+  "configuration": {
+    "expected_rate": 200.0,
+    "rate_tolerance_percent": 5.0,
+    "test_duration": 10.0,
+    "measure_latency": true
+  },
+  "statistics": {
+    "total_samples": 2388,
+    "min_processing_time_us": 0.0,
+    "max_processing_time_us": 298.9768981933594,
+    "avg_processing_time_us": 67.68991000688256,
+    "throughput_hz": 200.0823652329332,
+    "duration_seconds": 11.935084819793701,
+    "expected_rate": 200.0,
+    "rate_ok": true,
+    "utilization_percent": 13.53798200137651,
+    "can_keep_up": true
+  }
+}

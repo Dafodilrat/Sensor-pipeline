@@ -1,0 +1,23 @@
+{
+  "filter_type": "FIXED MEAN FILTER",
+  "sensor_type": "imu",
+  "timestamp": "20260730_150841",
+  "configuration": {
+    "expected_rate": 200.0,
+    "rate_tolerance_percent": 5.0,
+    "test_duration": 10.0,
+    "measure_latency": true
+  },
+  "statistics": {
+    "total_samples": 2389,
+    "min_processing_time_us": 0.0,
+    "max_processing_time_us": 275.1350402832031,
+    "avg_processing_time_us": 66.96707836101623,
+    "throughput_hz": 200.08872938187108,
+    "duration_seconds": 11.939702987670898,
+    "expected_rate": 200.0,
+    "rate_ok": true,
+    "utilization_percent": 13.393415672203249,
+    "can_keep_up": true
+  }
+}
