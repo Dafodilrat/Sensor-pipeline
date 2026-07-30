@@ -94,6 +94,8 @@ RUN apt-get update && apt-get install -y \
     cmake \
     build-essential \
     python3-dev \
+    libeigen3-dev \ 
+    # ros-jazzy-eigen3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
