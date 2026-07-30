@@ -30,11 +30,14 @@ def get_workspace_root():
     """
     package_share = get_package_share_directory('benchmark')
     
+    if not package_share:
+        package_share = os.getcwd()
+    
     for marker in ['/install/', '/build/', '/src/']:
         if marker in package_share:
             return package_share.split(marker)[0]
     
-    return os.path.dirname(os.path.dirname(os.path.dirname(package_share)))
+    return package_share
 
 
 class FilterStatistics:
